@@ -1,0 +1,2743 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TimeTrack Pro - Sistema de Fichaje Multiempresa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #FAFAF8;
+            --bg-secondary: #FFFFFF;
+            --bg-tertiary: #F5F5F3;
+            --bg-accent: #1A1A1A;
+            --bg-success: #E8F5E9;
+            --bg-warning: #FFF8E1;
+            --bg-danger: #FFEBEE;
+            --bg-info: #E3F2FD;
+            
+            --text-primary: #1A1A1A;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            --text-inverse: #FFFFFF;
+            --text-success: #2E7D32;
+            --text-warning: #F57C00;
+            --text-danger: #C62828;
+            --text-info: #1565C0;
+            
+            --border-light: rgba(0,0,0,0.08);
+            --border-medium: rgba(0,0,0,0.12);
+            --border-heavy: rgba(0,0,0,0.2);
+            
+            --accent-primary: #2563EB;
+            --accent-success: #16A34A;
+            --accent-warning: #EA580C;
+            --accent-danger: #DC2626;
+            
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+            
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            
+            --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'Space Mono', monospace;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body, #root {
+            height: 100%;
+            width: 100%;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        input, button, select, textarea {
+            font-family: inherit;
+            font-size: inherit;
+        }
+        
+        button {
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+        
+        input:focus, button:focus, select:focus, textarea:focus {
+            outline: none;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-12px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        @keyframes ripple {
+            0% { transform: scale(0); opacity: 0.6; }
+            100% { transform: scale(4); opacity: 0; }
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-medium);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-heavy);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo, createContext, useContext, useRef } = React;
+
+        // ============================================
+        // CONFIGURACIÓN Y DATOS INICIALES
+        // ============================================
+        
+        const CONFIG = {
+            APP_NAME: 'TimeTrack Pro',
+            VERSION: '2.0.0',
+            LOCAL_STORAGE_KEYS: {
+                SESSION: 'timetrack_session',
+                COMPANIES: 'timetrack_companies',
+                USERS: 'timetrack_users',
+                RECORDS: 'timetrack_records',
+                LOGS: 'timetrack_logs'
+            }
+        };
+
+        // Empresas de demo
+        const DEFAULT_COMPANIES = [
+            {
+                id: 'global_root',
+                name: 'Global Workspace',
+                code: 'GLOBAL',
+                status: 'active',
+                createdAt: new Date().toISOString(),
+                settings: {
+                    allowRemote: true,
+                    requireObservations: false
+                }
+            },
+            {
+                id: 'comp_001',
+                name: 'TechCorp Solutions',
+                code: 'TECHCORP',
+                status: 'active',
+                createdAt: new Date().toISOString(),
+                settings: {
+                    allowRemote: true,
+                    requireObservations: false
+                }
+            },
+            {
+                id: 'comp_002',
+                name: 'Marketing Digital Pro',
+                code: 'MKTPRO',
+                status: 'active',
+                createdAt: new Date().toISOString(),
+                settings: {
+                    allowRemote: true,
+                    requireObservations: false
+                }
+            }
+        ];
+
+        // Usuarios de demo para cada empresa
+        const DEFAULT_USERS = [
+            {
+                id: 'superadmin_001',
+                companyId: 'global_root',
+                email: 'root@timetrackpro.com',
+                password: 'SuperAdmin123!',
+                name: 'Administrador',
+                lastName: 'Global',
+                role: 'superadmin',
+                hoursContracted: 160,
+                status: 'active',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            // TechCorp
+            {
+                id: 'admin_tech_001',
+                companyId: 'comp_001',
+                email: 'admin@techcorp.com',
+                password: 'Admin123!',
+                name: 'Carlos',
+                lastName: 'Rodríguez',
+                role: 'admin',
+                hoursContracted: 160,
+                status: 'active',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: 'emp_tech_001',
+                companyId: 'comp_001',
+                email: 'maria@techcorp.com',
+                password: 'Empleado123!',
+                name: 'María',
+                lastName: 'García López',
+                role: 'employee',
+                hoursContracted: 160,
+                status: 'active',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: 'emp_tech_002',
+                companyId: 'comp_001',
+                email: 'juan@techcorp.com',
+                password: 'Empleado123!',
+                name: 'Juan',
+                lastName: 'Martínez',
+                role: 'employee',
+                hoursContracted: 160,
+                status: 'active',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            // Marketing Digital Pro
+            {
+                id: 'admin_mkt_001',
+                companyId: 'comp_002',
+                email: 'admin@mktpro.com',
+                password: 'Admin123!',
+                name: 'Laura',
+                lastName: 'Fernández',
+                role: 'admin',
+                hoursContracted: 160,
+                status: 'active',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: 'emp_mkt_001',
+                companyId: 'comp_002',
+                email: 'pedro@mktpro.com',
+                password: 'Empleado123!',
+                name: 'Pedro',
+                lastName: 'Sánchez',
+                role: 'employee',
+                hoursContracted: 160,
+                status: 'active',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            }
+        ];
+
+        // ============================================
+        // UTILIDADES
+        // ============================================
+        
+        const Utils = {
+            generateId: (prefix = 'id') => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            
+            formatDate: (date, format = 'short') => {
+                const d = new Date(date);
+                const options = format === 'long' 
+                    ? { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
+                    : { year: 'numeric', month: '2-digit', day: '2-digit' };
+                return d.toLocaleDateString('es-ES', options);
+            },
+            
+            formatTime: (date) => {
+                return new Date(date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            },
+            
+            formatDateTime: (date) => {
+                return `${Utils.formatDate(date)} ${Utils.formatTime(date)}`;
+            },
+            
+            calculateHours: (start, end) => {
+                if (!start || !end) return null;
+                const diff = new Date(end) - new Date(start);
+                const hours = diff / (1000 * 60 * 60);
+                return Math.round(hours * 100) / 100;
+            },
+            
+            formatHours: (hours) => {
+                if (hours === null || hours === undefined) return '-';
+                const h = Math.floor(Math.abs(hours));
+                const m = Math.round((Math.abs(hours) - h) * 60);
+                const prefix = hours < 0 ? '-' : '';
+                return `${prefix}${h}h ${m}m`;
+            },
+
+            formatBalance: (worked, contracted) => {
+                const balance = (worked || 0) - (contracted || 0);
+                return {
+                    balance,
+                    label: balance === 0 ? 'En objetivo' : balance > 0 ? `+${Utils.formatHours(balance)}` : Utils.formatHours(balance),
+                    variant: balance === 0 ? 'info' : balance > 0 ? 'success' : 'warning'
+                };
+            },
+            
+            getTodayString: () => {
+                return new Date().toISOString().split('T')[0];
+            },
+            
+            isToday: (date) => {
+                return new Date(date).toDateString() === new Date().toDateString();
+            },
+            
+            validateEmail: (email) => {
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            },
+            
+            validatePassword: (password) => {
+                return password.length >= 6;
+            },
+            
+            debounce: (fn, delay) => {
+                let timeoutId;
+                return (...args) => {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => fn(...args), delay);
+                };
+            }
+        };
+
+        // ============================================
+        // GESTIÓN DE DATOS MULTIEMPRESA
+        // ============================================
+        
+        const DataService = {
+            // Inicializar datos por defecto
+            init: () => {
+                const companies = DataService.getCompanies();
+                if (companies.length === 0) {
+                    DataService.saveCompanies(DEFAULT_COMPANIES);
+                    DataService.saveUsers(DEFAULT_USERS);
+                }
+            },
+            
+            // ===== EMPRESAS =====
+            getCompanies: () => {
+                const data = localStorage.getItem(CONFIG.LOCAL_STORAGE_KEYS.COMPANIES);
+                return data ? JSON.parse(data) : [];
+            },
+            
+            saveCompanies: (companies) => {
+                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.COMPANIES, JSON.stringify(companies));
+            },
+            
+            getCompanyById: (id) => {
+                return DataService.getCompanies().find(c => c.id === id);
+            },
+            
+            getCompanyByCode: (code) => {
+                return DataService.getCompanies().find(c => 
+                    c.code.toLowerCase() === code.toLowerCase() && c.status === 'active'
+                );
+            },
+            
+            createCompany: (companyData) => {
+                const companies = DataService.getCompanies();
+                const newCompany = {
+                    ...companyData,
+                    id: Utils.generateId('comp'),
+                    createdAt: new Date().toISOString(),
+                    status: 'active',
+                    settings: companyData.settings || { allowRemote: true, requireObservations: false }
+                };
+                companies.push(newCompany);
+                DataService.saveCompanies(companies);
+                DataService.addLog('CREATE_COMPANY', newCompany.id, `Empresa creada: ${newCompany.name}`);
+                return newCompany;
+            },
+            
+            updateCompany: (id, updates) => {
+                const companies = DataService.getCompanies();
+                const index = companies.findIndex(c => c.id === id);
+                if (index !== -1) {
+                    companies[index] = { ...companies[index], ...updates, updatedAt: new Date().toISOString() };
+                    DataService.saveCompanies(companies);
+                    return companies[index];
+                }
+                return null;
+            },
+
+            deleteCompany: (id) => {
+                if (id === 'global_root') return false;
+                const company = DataService.getCompanyById(id);
+                if (!company) return false;
+                const companies = DataService.getCompanies().filter(c => c.id !== id);
+                const users = DataService.getUsers().filter(u => u.companyId !== id);
+                const records = DataService.getRecords().filter(r => r.companyId !== id);
+                DataService.saveCompanies(companies);
+                DataService.saveUsers(users);
+                DataService.saveRecords(records);
+                DataService.addLog('DELETE_COMPANY', id, `Empresa eliminada: ${company.name}`, null, null);
+                return true;
+            },
+            
+            // ===== USUARIOS (filtrados por empresa) =====
+            getUsers: () => {
+                const data = localStorage.getItem(CONFIG.LOCAL_STORAGE_KEYS.USERS);
+                return data ? JSON.parse(data) : [];
+            },
+            
+            saveUsers: (users) => {
+                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.USERS, JSON.stringify(users));
+            },
+            
+            getUsersByCompany: (companyId) => {
+                return DataService.getUsers().filter(u => u.companyId === companyId);
+            },
+
+            getManageableUsers: (role, companyId) => {
+                if (role === 'superadmin') {
+                    return DataService.getUsers().filter(u => u.role !== 'superadmin');
+                }
+                return DataService.getUsersByCompany(companyId);
+            },
+            
+            getUserById: (id) => {
+                return DataService.getUsers().find(u => u.id === id);
+            },
+            
+            getUserByEmailAndCompany: (email, companyId) => {
+                return DataService.getUsers().find(u => 
+                    u.email.toLowerCase() === email.toLowerCase() && 
+                    u.companyId === companyId
+                );
+            },
+            
+            createUser: (userData, companyId) => {
+                const users = DataService.getUsers();
+                
+                // Verificar que no exista el email en la misma empresa
+                const exists = users.find(u => 
+                    u.email.toLowerCase() === userData.email.toLowerCase() && 
+                    u.companyId === companyId
+                );
+                if (exists) {
+                    return { error: 'Ya existe un usuario con este email en la empresa' };
+                }
+                
+                const newUser = {
+                    ...userData,
+                    id: Utils.generateId('usr'),
+                    companyId,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                users.push(newUser);
+                DataService.saveUsers(users);
+                DataService.addLog('CREATE_USER', newUser.id, `Usuario creado: ${newUser.email}`, null, companyId);
+                return newUser;
+            },
+            
+            updateUser: (id, updates, companyId = null) => {
+                const users = DataService.getUsers();
+                const index = users.findIndex(u => u.id === id && (!companyId || companyId === 'global_root' || u.companyId === companyId));
+                if (index !== -1) {
+                    users[index] = { 
+                        ...users[index], 
+                        ...updates, 
+                        updatedAt: new Date().toISOString() 
+                    };
+                    DataService.saveUsers(users);
+                    DataService.addLog('UPDATE_USER', id, `Usuario actualizado: ${users[index].email}`, null, companyId);
+                    return users[index];
+                }
+                return null;
+            },
+            
+            deleteUser: (id, companyId = null) => {
+                const users = DataService.getUsers();
+                const user = users.find(u => u.id === id && (!companyId || companyId === 'global_root' || u.companyId === companyId));
+                if (!user) return false;
+                
+                const filtered = users.filter(u => u.id !== id);
+                DataService.saveUsers(filtered);
+                DataService.addLog('DELETE_USER', id, `Usuario eliminado: ${user.email}`, null, companyId);
+                return true;
+            },
+            
+            // ===== REGISTROS (filtrados por empresa) =====
+            getRecords: () => {
+                const data = localStorage.getItem(CONFIG.LOCAL_STORAGE_KEYS.RECORDS);
+                return data ? JSON.parse(data) : [];
+            },
+            
+            saveRecords: (records) => {
+                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.RECORDS, JSON.stringify(records));
+            },
+            
+            getRecordsByCompany: (companyId) => {
+                return DataService.getRecords().filter(r => r.companyId === companyId);
+            },
+            
+            getRecordsByUser: (userId, companyId) => {
+                return DataService.getRecords().filter(r => r.userId === userId && r.companyId === companyId);
+            },
+            
+            getTodayRecordForUser: (userId, companyId) => {
+                const today = Utils.getTodayString();
+                return DataService.getRecords().find(r => 
+                    r.userId === userId && r.companyId === companyId && r.date === today
+                );
+            },
+            
+            createRecord: (recordData, companyId) => {
+                const records = DataService.getRecords();
+                const newRecord = {
+                    ...recordData,
+                    id: Utils.generateId('rec'),
+                    companyId,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                records.push(newRecord);
+                DataService.saveRecords(records);
+                return newRecord;
+            },
+            
+            updateRecord: (id, updates, companyId, adminId = null) => {
+                const records = DataService.getRecords();
+                const index = records.findIndex(r => r.id === id && r.companyId === companyId);
+                if (index !== -1) {
+                    const oldRecord = { ...records[index] };
+                    records[index] = { 
+                        ...records[index], 
+                        ...updates, 
+                        updatedAt: new Date().toISOString(),
+                        lastModifiedBy: adminId,
+                        modificationHistory: [
+                            ...(records[index].modificationHistory || []),
+                            {
+                                date: new Date().toISOString(),
+                                modifiedBy: adminId,
+                                changes: updates,
+                                previousValues: oldRecord
+                            }
+                        ]
+                    };
+                    DataService.saveRecords(records);
+                    if (adminId) {
+                        DataService.addLog('MODIFY_RECORD', id, `Registro modificado por admin`, adminId, companyId);
+                    }
+                    return records[index];
+                }
+                return null;
+            },
+            
+            // ===== LOGS (filtrados por empresa) =====
+            getLogs: () => {
+                const data = localStorage.getItem(CONFIG.LOCAL_STORAGE_KEYS.LOGS);
+                return data ? JSON.parse(data) : [];
+            },
+            
+            getLogsByCompany: (companyId) => {
+                return DataService.getLogs().filter(l => l.companyId === companyId);
+            },
+            
+            addLog: (action, targetId, description, performedBy = null, companyId = null) => {
+                const logs = DataService.getLogs();
+                logs.push({
+                    id: Utils.generateId('log'),
+                    action,
+                    targetId,
+                    description,
+                    performedBy,
+                    companyId,
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent
+                });
+                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.LOGS, JSON.stringify(logs));
+            },
+            
+            // ===== SESIÓN =====
+            getSession: () => {
+                const data = localStorage.getItem(CONFIG.LOCAL_STORAGE_KEYS.SESSION);
+                return data ? JSON.parse(data) : null;
+            },
+            
+            setSession: (user, company) => {
+                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.SESSION, JSON.stringify({
+                    userId: user.id,
+                    companyId: company.id,
+                    role: user.role,
+                    loginAt: new Date().toISOString()
+                }));
+            },
+            
+            clearSession: () => {
+                localStorage.removeItem(CONFIG.LOCAL_STORAGE_KEYS.SESSION);
+            }
+        };
+
+        // Inicializar datos
+        DataService.init();
+
+        // ============================================
+        // CONTEXTO DE AUTENTICACIÓN
+        // ============================================
+        
+        const AuthContext = createContext(null);
+
+        const AuthProvider = ({ children }) => {
+            const [user, setUser] = useState(null);
+            const [company, setCompany] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const session = DataService.getSession();
+                if (session) {
+                    const userData = DataService.getUserById(session.userId);
+                    const companyData = DataService.getCompanyById(session.companyId);
+                    if (userData && userData.status === 'active' && companyData && companyData.status === 'active') {
+                        setUser(userData);
+                        setCompany(companyData);
+                    } else {
+                        DataService.clearSession();
+                    }
+                }
+                setLoading(false);
+            }, []);
+
+            const login = useCallback((companyCode, email, password) => {
+                // Buscar empresa por código
+                const companyData = DataService.getCompanyByCode(companyCode);
+                if (!companyData) {
+                    return { success: false, error: 'Código de empresa no válido' };
+                }
+                
+                // Buscar usuario en esa empresa
+                const userData = DataService.getUserByEmailAndCompany(email, companyData.id);
+                if (!userData) {
+                    return { success: false, error: 'Usuario no encontrado en esta empresa' };
+                }
+                if (userData.status !== 'active') {
+                    return { success: false, error: 'Usuario desactivado. Contacte con el administrador.' };
+                }
+                if (userData.password !== password) {
+                    return { success: false, error: 'Contraseña incorrecta' };
+                }
+                
+                DataService.setSession(userData, companyData);
+                DataService.addLog('LOGIN', userData.id, `Inicio de sesión: ${userData.email}`, userData.id, companyData.id);
+                setUser(userData);
+                setCompany(companyData);
+                return { success: true };
+            }, []);
+
+            const logout = useCallback(() => {
+                if (user && company) {
+                    DataService.addLog('LOGOUT', user.id, `Cierre de sesión: ${user.email}`, user.id, company.id);
+                }
+                DataService.clearSession();
+                setUser(null);
+                setCompany(null);
+            }, [user, company]);
+
+            const refreshUser = useCallback(() => {
+                if (user) {
+                    const updated = DataService.getUserById(user.id);
+                    setUser(updated);
+                }
+            }, [user]);
+
+            return (
+                <AuthContext.Provider value={{ user, company, loading, login, logout, refreshUser }}>
+                    {children}
+                </AuthContext.Provider>
+            );
+        };
+
+        const useAuth = () => useContext(AuthContext);
+
+        // ============================================
+        // CONTEXTO DE TOAST
+        // ============================================
+        
+        const ToastContext = createContext(null);
+
+        const ToastProvider = ({ children }) => {
+            const [toasts, setToasts] = useState([]);
+
+            const addToast = useCallback((message, type = 'info', duration = 4000) => {
+                const id = Utils.generateId('toast');
+                setToasts(prev => [...prev, { id, message, type }]);
+                setTimeout(() => {
+                    setToasts(prev => prev.filter(t => t.id !== id));
+                }, duration);
+            }, []);
+
+            return (
+                <ToastContext.Provider value={{ addToast }}>
+                    {children}
+                    <div style={{
+                        position: 'fixed',
+                        bottom: '20px',
+                        right: '20px',
+                        zIndex: 2000,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px'
+                    }}>
+                        {toasts.map(toast => (
+                            <div
+                                key={toast.id}
+                                className="animate-slide-in"
+                                style={{
+                                    padding: '14px 20px',
+                                    borderRadius: 'var(--radius-md)',
+                                    background: toast.type === 'error' ? 'var(--accent-danger)' 
+                                        : toast.type === 'success' ? 'var(--accent-success)'
+                                        : toast.type === 'warning' ? 'var(--accent-warning)'
+                                        : 'var(--bg-accent)',
+                                    color: 'white',
+                                    fontSize: '14px',
+                                    fontWeight: '500',
+                                    boxShadow: 'var(--shadow-lg)',
+                                    maxWidth: '320px'
+                                }}
+                            >
+                                {toast.message}
+                            </div>
+                        ))}
+                    </div>
+                </ToastContext.Provider>
+            );
+        };
+
+        const useToast = () => useContext(ToastContext);
+
+        // ============================================
+        // COMPONENTES DE UI BASE
+        // ============================================
+        
+        const Button = ({ 
+            children, 
+            variant = 'primary', 
+            size = 'md', 
+            fullWidth = false,
+            loading = false,
+            disabled = false,
+            icon = null,
+            onClick,
+            style = {},
+            ...props 
+        }) => {
+            const baseStyles = {
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontWeight: '500',
+                borderRadius: 'var(--radius-md)',
+                transition: 'all 0.2s ease',
+                width: fullWidth ? '100%' : 'auto',
+                opacity: disabled || loading ? 0.6 : 1,
+                pointerEvents: disabled || loading ? 'none' : 'auto',
+                position: 'relative',
+                overflow: 'hidden'
+            };
+
+            const sizes = {
+                sm: { padding: '8px 16px', fontSize: '13px' },
+                md: { padding: '12px 24px', fontSize: '14px' },
+                lg: { padding: '16px 32px', fontSize: '16px' },
+                xl: { padding: '20px 40px', fontSize: '18px' }
+            };
+
+            const variants = {
+                primary: {
+                    background: 'var(--bg-accent)',
+                    color: 'var(--text-inverse)',
+                    border: 'none',
+                    boxShadow: 'var(--shadow-md)'
+                },
+                secondary: {
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-medium)'
+                },
+                success: {
+                    background: 'var(--accent-success)',
+                    color: 'white',
+                    border: 'none',
+                    boxShadow: 'var(--shadow-md)'
+                },
+                danger: {
+                    background: 'var(--accent-danger)',
+                    color: 'white',
+                    border: 'none',
+                    boxShadow: 'var(--shadow-md)'
+                },
+                ghost: {
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    border: 'none'
+                },
+                outline: {
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-heavy)'
+                }
+            };
+
+            const handleClick = (e) => {
+                if (!disabled && !loading && onClick) {
+                    const button = e.currentTarget;
+                    const ripple = document.createElement('span');
+                    const rect = button.getBoundingClientRect();
+                    const size = Math.max(rect.width, rect.height);
+                    ripple.style.cssText = `
+                        position: absolute;
+                        width: ${size}px;
+                        height: ${size}px;
+                        background: rgba(255,255,255,0.3);
+                        border-radius: 50%;
+                        left: ${e.clientX - rect.left - size/2}px;
+                        top: ${e.clientY - rect.top - size/2}px;
+                        animation: ripple 0.6s ease-out forwards;
+                        pointer-events: none;
+                    `;
+                    button.appendChild(ripple);
+                    setTimeout(() => ripple.remove(), 600);
+                    onClick(e);
+                }
+            };
+
+            return (
+                <button
+                    style={{ ...baseStyles, ...sizes[size], ...variants[variant], ...style }}
+                    onClick={handleClick}
+                    disabled={disabled || loading}
+                    {...props}
+                >
+                    {loading ? (
+                        <span style={{
+                            width: '16px',
+                            height: '16px',
+                            border: '2px solid currentColor',
+                            borderTopColor: 'transparent',
+                            borderRadius: '50%',
+                            animation: 'spin 0.8s linear infinite'
+                        }} />
+                    ) : icon}
+                    {children}
+                </button>
+            );
+        };
+
+        const Input = ({ 
+            label, 
+            error, 
+            icon = null,
+            fullWidth = true,
+            style = {},
+            containerStyle = {},
+            ...props 
+        }) => {
+            const [focused, setFocused] = useState(false);
+
+            return (
+                <div style={{ width: fullWidth ? '100%' : 'auto', ...containerStyle }}>
+                    {label && (
+                        <label style={{
+                            display: 'block',
+                            marginBottom: '6px',
+                            fontSize: '13px',
+                            fontWeight: '500',
+                            color: 'var(--text-secondary)'
+                        }}>
+                            {label}
+                        </label>
+                    )}
+                    <div style={{ position: 'relative' }}>
+                        {icon && (
+                            <span style={{
+                                position: 'absolute',
+                                left: '14px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: focused ? 'var(--accent-primary)' : 'var(--text-tertiary)',
+                                transition: 'color 0.2s ease'
+                            }}>
+                                {icon}
+                            </span>
+                        )}
+                        <input
+                            style={{
+                                width: '100%',
+                                padding: icon ? '14px 14px 14px 44px' : '14px',
+                                fontSize: '15px',
+                                background: 'var(--bg-secondary)',
+                                border: `1px solid ${error ? 'var(--accent-danger)' : focused ? 'var(--accent-primary)' : 'var(--border-light)'}`,
+                                borderRadius: 'var(--radius-md)',
+                                transition: 'all 0.2s ease',
+                                outline: 'none',
+                                boxShadow: focused ? '0 0 0 3px rgba(37, 99, 235, 0.1)' : 'none',
+                                ...style
+                            }}
+                            onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
+                            onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
+                            {...props}
+                        />
+                    </div>
+                    {error && (
+                        <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-danger)' }}>
+                            {error}
+                        </p>
+                    )}
+                </div>
+            );
+        };
+
+        const Select = ({ label, options, error, fullWidth = true, style = {}, ...props }) => {
+            return (
+                <div style={{ width: fullWidth ? '100%' : 'auto' }}>
+                    {label && (
+                        <label style={{
+                            display: 'block',
+                            marginBottom: '6px',
+                            fontSize: '13px',
+                            fontWeight: '500',
+                            color: 'var(--text-secondary)'
+                        }}>
+                            {label}
+                        </label>
+                    )}
+                    <select
+                        style={{
+                            width: '100%',
+                            padding: '14px',
+                            paddingRight: '40px',
+                            fontSize: '15px',
+                            background: 'var(--bg-secondary)',
+                            border: `1px solid ${error ? 'var(--accent-danger)' : 'var(--border-light)'}`,
+                            borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer',
+                            appearance: 'none',
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 14px center',
+                            ...style
+                        }}
+                        {...props}
+                    >
+                        {options.map(opt => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </select>
+                    {error && (
+                        <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-danger)' }}>
+                            {error}
+                        </p>
+                    )}
+                </div>
+            );
+        };
+
+        const TextArea = ({ label, error, fullWidth = true, style = {}, ...props }) => {
+            const [focused, setFocused] = useState(false);
+
+            return (
+                <div style={{ width: fullWidth ? '100%' : 'auto' }}>
+                    {label && (
+                        <label style={{
+                            display: 'block',
+                            marginBottom: '6px',
+                            fontSize: '13px',
+                            fontWeight: '500',
+                            color: 'var(--text-secondary)'
+                        }}>
+                            {label}
+                        </label>
+                    )}
+                    <textarea
+                        style={{
+                            width: '100%',
+                            padding: '14px',
+                            fontSize: '15px',
+                            background: 'var(--bg-secondary)',
+                            border: `1px solid ${error ? 'var(--accent-danger)' : focused ? 'var(--accent-primary)' : 'var(--border-light)'}`,
+                            borderRadius: 'var(--radius-md)',
+                            resize: 'vertical',
+                            minHeight: '100px',
+                            outline: 'none',
+                            transition: 'all 0.2s ease',
+                            ...style
+                        }}
+                        onFocus={() => setFocused(true)}
+                        onBlur={() => setFocused(false)}
+                        {...props}
+                    />
+                    {error && (
+                        <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-danger)' }}>
+                            {error}
+                        </p>
+                    )}
+                </div>
+            );
+        };
+
+        const Card = ({ children, padding = true, hover = false, onClick, style = {} }) => {
+            return (
+                <div
+                    style={{
+                        background: 'var(--bg-secondary)',
+                        borderRadius: 'var(--radius-lg)',
+                        border: '1px solid var(--border-light)',
+                        padding: padding ? '24px' : 0,
+                        transition: 'all 0.2s ease',
+                        cursor: onClick ? 'pointer' : 'default',
+                        ...style
+                    }}
+                    onClick={onClick}
+                >
+                    {children}
+                </div>
+            );
+        };
+
+        const Badge = ({ children, variant = 'default', style = {} }) => {
+            const variants = {
+                default: { background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' },
+                success: { background: 'var(--bg-success)', color: 'var(--text-success)' },
+                warning: { background: 'var(--bg-warning)', color: 'var(--text-warning)' },
+                danger: { background: 'var(--bg-danger)', color: 'var(--text-danger)' },
+                info: { background: 'var(--bg-info)', color: 'var(--text-info)' }
+            };
+
+            return (
+                <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    borderRadius: 'var(--radius-sm)',
+                    ...variants[variant],
+                    ...style
+                }}>
+                    {children}
+                </span>
+            );
+        };
+
+        const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
+            if (!isOpen) return null;
+
+            const sizes = {
+                sm: { maxWidth: '400px' },
+                md: { maxWidth: '560px' },
+                lg: { maxWidth: '720px' },
+                xl: { maxWidth: '900px' }
+            };
+
+            return (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px'
+                }}>
+                    <div 
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.5)',
+                            backdropFilter: 'blur(4px)'
+                        }}
+                        onClick={onClose}
+                    />
+                    <div 
+                        className="animate-fade-in"
+                        style={{
+                            position: 'relative',
+                            background: 'var(--bg-secondary)',
+                            borderRadius: 'var(--radius-xl)',
+                            width: '100%',
+                            ...sizes[size],
+                            maxHeight: '90vh',
+                            overflow: 'auto',
+                            boxShadow: 'var(--shadow-lg)'
+                        }}
+                    >
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '20px 24px',
+                            borderBottom: '1px solid var(--border-light)'
+                        }}>
+                            <h2 style={{ fontSize: '18px', fontWeight: '600' }}>{title}</h2>
+                            <button
+                                onClick={onClose}
+                                style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: 'var(--radius-sm)',
+                                    background: 'var(--bg-tertiary)',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M18 6L6 18M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div style={{ padding: '24px' }}>
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ============================================
+        // ICONOS
+        // ============================================
+        
+        const Icons = {
+            Clock: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                </svg>
+            ),
+            User: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                </svg>
+            ),
+            Users: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+            ),
+            LogIn: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                    <polyline points="10,17 15,12 10,7" />
+                    <line x1="15" y1="12" x2="3" y2="12" />
+                </svg>
+            ),
+            LogOut: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16,17 21,12 16,7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+            ),
+            Check: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20,6 9,17 4,12" />
+                </svg>
+            ),
+            X: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            ),
+            Plus: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 5v14M5 12h14" />
+                </svg>
+            ),
+            Edit: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+            ),
+            Trash: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3,6 5,6 21,6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+            ),
+            Search: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35" />
+                </svg>
+            ),
+            Filter: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3" />
+                </svg>
+            ),
+            Download: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7,10 12,15 17,10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+            ),
+            Building: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="4" y="2" width="16" height="20" rx="2" />
+                    <path d="M9 22v-4h6v4" />
+                    <path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01" />
+                </svg>
+            ),
+            MapPin: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                </svg>
+            ),
+            Laptop: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <line x1="2" y1="20" x2="22" y2="20" />
+                </svg>
+            ),
+            Activity: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+                </svg>
+            ),
+            Calendar: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+            ),
+            ChevronRight: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="9,18 15,12 9,6" />
+                </svg>
+            ),
+            Menu: () => (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+            )
+        };
+
+        // ============================================
+        // PANTALLA DE LOGIN MULTIEMPRESA
+        // ============================================
+        
+        const LoginScreen = () => {
+            const { login } = useAuth();
+            const { addToast } = useToast();
+            const [companyCode, setCompanyCode] = useState('');
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [errors, setErrors] = useState({});
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setErrors({});
+
+                const newErrors = {};
+                if (!companyCode) newErrors.companyCode = 'El código de empresa es obligatorio';
+                if (!email) newErrors.email = 'El email es obligatorio';
+                else if (!Utils.validateEmail(email)) newErrors.email = 'Email no válido';
+                if (!password) newErrors.password = 'La contraseña es obligatoria';
+
+                if (Object.keys(newErrors).length > 0) {
+                    setErrors(newErrors);
+                    return;
+                }
+
+                setLoading(true);
+                await new Promise(resolve => setTimeout(resolve, 800));
+                
+                const result = login(companyCode, email, password);
+                
+                if (!result.success) {
+                    addToast(result.error, 'error');
+                } else {
+                    addToast('Sesión iniciada correctamente', 'success');
+                }
+                
+                setLoading(false);
+            };
+
+            return (
+                <div style={{
+                    minHeight: '100vh',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px',
+                    background: 'linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-tertiary) 100%)'
+                }}>
+                    <div className="animate-fade-in" style={{ width: '100%', maxWidth: '420px' }}>
+                        {/* Logo y título */}
+                        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                            <div style={{
+                                width: '64px',
+                                height: '64px',
+                                margin: '0 auto 20px',
+                                background: 'var(--bg-accent)',
+                                borderRadius: 'var(--radius-lg)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: 'var(--shadow-lg)'
+                            }}>
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M12 6v6l4 2" />
+                                </svg>
+                            </div>
+                            <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '8px' }}>
+                                {CONFIG.APP_NAME}
+                            </h1>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
+                                Sistema de control de fichajes multiempresa
+                            </p>
+                        </div>
+
+                        {/* Card de login */}
+                        <Card style={{ boxShadow: 'var(--shadow-lg)' }}>
+                            <form onSubmit={handleSubmit}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                    <Input
+                                        label="Código de empresa"
+                                        type="text"
+                                        placeholder="Ej: TECHCORP"
+                                        value={companyCode}
+                                        onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
+                                        error={errors.companyCode}
+                                        icon={<Icons.Building />}
+                                        style={{ textTransform: 'uppercase' }}
+                                    />
+                                    
+                                    <Input
+                                        label="Email"
+                                        type="email"
+                                        placeholder="tu@email.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        error={errors.email}
+                                        icon={<Icons.User />}
+                                    />
+                                    
+                                    <Input
+                                        label="Contraseña"
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        error={errors.password}
+                                    />
+
+                                    <Button 
+                                        type="submit" 
+                                        fullWidth 
+                                        size="lg"
+                                        loading={loading}
+                                        icon={<Icons.LogIn />}
+                                    >
+                                        Iniciar sesión
+                                    </Button>
+                                </div>
+                            </form>
+                        </Card>
+
+                        {/* Info de credenciales demo */}
+                        <div style={{
+                            marginTop: '24px',
+                            padding: '16px',
+                            background: 'var(--bg-info)',
+                            borderRadius: 'var(--radius-md)',
+                            fontSize: '13px'
+                        }}>
+                            <p style={{ fontWeight: '600', marginBottom: '12px', color: 'var(--text-info)' }}>
+                                Empresas de prueba:
+                            </p>
+                            <div style={{ marginBottom: '12px', padding: '10px', background: 'rgba(255,255,255,0.5)', borderRadius: 'var(--radius-sm)' }}>
+                                <p style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                                    TechCorp Solutions (TECHCORP)
+                                </p>
+                                <p style={{ color: 'var(--text-info)', fontSize: '12px' }}>
+                                    Admin: admin@techcorp.com / Admin123!
+                                </p>
+                                <p style={{ color: 'var(--text-info)', fontSize: '12px' }}>
+                                    Empleado: maria@techcorp.com / Empleado123!
+                                </p>
+                            </div>
+                            <div style={{ padding: '10px', background: 'rgba(255,255,255,0.5)', borderRadius: 'var(--radius-sm)', marginBottom: '12px' }}>
+                                <p style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                                    Marketing Digital Pro (MKTPRO)
+                                </p>
+                                <p style={{ color: 'var(--text-info)', fontSize: '12px' }}>
+                                    Admin: admin@mktpro.com / Admin123!
+                                </p>
+                                <p style={{ color: 'var(--text-info)', fontSize: '12px' }}>
+                                    Empleado: pedro@mktpro.com / Empleado123!
+                                </p>
+                            </div>
+                            <div style={{ padding: '10px', background: 'rgba(255,255,255,0.5)', borderRadius: 'var(--radius-sm)' }}>
+                                <p style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                                    Administración Global (GLOBAL)
+                                </p>
+                                <p style={{ color: 'var(--text-info)', fontSize: '12px' }}>
+                                    Superadmin: root@timetrackpro.com / SuperAdmin123!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ============================================
+        // VISTA DE EMPLEADO
+        // ============================================
+        
+        const EmployeeView = () => {
+            const { user, company, logout } = useAuth();
+            const { addToast } = useToast();
+            const [currentTime, setCurrentTime] = useState(new Date());
+            const [todayRecord, setTodayRecord] = useState(null);
+            const [records, setRecords] = useState([]);
+            const [showObservationModal, setShowObservationModal] = useState(false);
+            const [pendingAction, setPendingAction] = useState(null);
+            const [observation, setObservation] = useState('');
+            const [checkType, setCheckType] = useState('presencial');
+            const [loading, setLoading] = useState(false);
+            const [view, setView] = useState('clock');
+            const [profileForm, setProfileForm] = useState({ password: '', hoursContracted: user.hoursContracted || 0 });
+            const [savingProfile, setSavingProfile] = useState(false);
+
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            useEffect(() => {
+                loadData();
+            }, [user, company]);
+
+            const loadData = () => {
+                const today = DataService.getTodayRecordForUser(user.id, company.id);
+                setTodayRecord(today);
+                const allRecords = DataService.getRecordsByUser(user.id, company.id);
+                setRecords(allRecords.sort((a, b) => new Date(b.date) - new Date(a.date)));
+                const freshUser = DataService.getUserById(user.id);
+                setProfileForm({
+                    password: '',
+                    hoursContracted: freshUser?.hoursContracted || 0
+                });
+            };
+
+            const totalWorked = useMemo(() => records.reduce((acc, r) => acc + (r.hoursWorked || 0), 0), [records]);
+            const hoursBalance = useMemo(() => Utils.formatBalance(totalWorked, Number(profileForm.hoursContracted || user.hoursContracted || 0)), [totalWorked, profileForm.hoursContracted, user.hoursContracted]);
+
+            const handleProfileSave = async () => {
+                setSavingProfile(true);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const updates = {
+                    hoursContracted: Number(profileForm.hoursContracted || 0)
+                };
+                if (profileForm.password) {
+                    updates.password = profileForm.password;
+                }
+                DataService.updateUser(user.id, updates, company.id);
+                addToast('Perfil actualizado correctamente', 'success');
+                setProfileForm(prev => ({ ...prev, password: '' }));
+                setSavingProfile(false);
+                loadData();
+            };
+
+            const getStatus = () => {
+                if (!todayRecord) return { status: 'pending', label: 'Sin fichar', color: 'warning' };
+                if (todayRecord.checkIn && !todayRecord.checkOut) {
+                    return { status: 'working', label: 'Trabajando', color: 'success' };
+                }
+                if (todayRecord.checkIn && todayRecord.checkOut) {
+                    return { status: 'completed', label: 'Jornada cerrada', color: 'info' };
+                }
+                return { status: 'pending', label: 'Sin fichar', color: 'warning' };
+            };
+
+            const handleCheckIn = () => {
+                if (todayRecord?.checkIn) {
+                    addToast('Ya has fichado entrada hoy', 'warning');
+                    return;
+                }
+                setPendingAction('checkIn');
+                setShowObservationModal(true);
+            };
+
+            const handleCheckOut = () => {
+                if (!todayRecord?.checkIn) {
+                    addToast('Debes fichar entrada primero', 'warning');
+                    return;
+                }
+                if (todayRecord?.checkOut) {
+                    addToast('Ya has fichado salida hoy', 'warning');
+                    return;
+                }
+                setPendingAction('checkOut');
+                setShowObservationModal(true);
+            };
+
+            const confirmAction = async () => {
+                setLoading(true);
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                const now = new Date().toISOString();
+                
+                if (pendingAction === 'checkIn') {
+                    const newRecord = DataService.createRecord({
+                        userId: user.id,
+                        userName: `${user.name} ${user.lastName}`,
+                        userEmail: user.email,
+                        date: Utils.getTodayString(),
+                        checkIn: now,
+                        checkOut: null,
+                        checkType,
+                        observations: observation || null,
+                        status: 'incomplete',
+                        hoursWorked: null
+                    }, company.id);
+                    DataService.addLog('CHECK_IN', newRecord.id, `Fichaje entrada: ${user.email}`, user.id, company.id);
+                    addToast('Entrada registrada correctamente', 'success');
+                } else if (pendingAction === 'checkOut') {
+                    const hoursWorked = Utils.calculateHours(todayRecord.checkIn, now);
+                    DataService.updateRecord(todayRecord.id, {
+                        checkOut: now,
+                        hoursWorked,
+                        status: 'complete',
+                        observationsOut: observation || null
+                    }, company.id);
+                    DataService.addLog('CHECK_OUT', todayRecord.id, `Fichaje salida: ${user.email}`, user.id, company.id);
+                    addToast(`Salida registrada. Horas trabajadas: ${Utils.formatHours(hoursWorked)}`, 'success');
+                }
+
+                setShowObservationModal(false);
+                setPendingAction(null);
+                setObservation('');
+                setCheckType('presencial');
+                setLoading(false);
+                loadData();
+            };
+
+            const status = getStatus();
+
+            return (
+                <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+                    {/* Header */}
+                    <header style={{
+                        background: 'var(--bg-secondary)',
+                        borderBottom: '1px solid var(--border-light)',
+                        padding: '16px 20px',
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 100
+                    }}>
+                        <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '2px' }}>
+                                    {company.name}
+                                </p>
+                                <h1 style={{ fontSize: '18px', fontWeight: '600' }}>
+                                    Hola, {user.name}
+                                </h1>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={logout} icon={<Icons.LogOut />}>
+                                Salir
+                            </Button>
+                        </div>
+                    </header>
+
+                    <main style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
+                        {/* Tabs */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '8px',
+                            marginBottom: '24px',
+                            background: 'var(--bg-tertiary)',
+                            padding: '4px',
+                            borderRadius: 'var(--radius-md)'
+                        }}>
+                            <button
+                                onClick={() => setView('clock')}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontWeight: '500',
+                                    fontSize: '14px',
+                                    background: view === 'clock' ? 'var(--bg-secondary)' : 'transparent',
+                                    boxShadow: view === 'clock' ? 'var(--shadow-sm)' : 'none',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                Fichar
+                            </button>
+                            <button
+                                onClick={() => setView('history')}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontWeight: '500',
+                                    fontSize: '14px',
+                                    background: view === 'history' ? 'var(--bg-secondary)' : 'transparent',
+                                    boxShadow: view === 'history' ? 'var(--shadow-sm)' : 'none',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                Historial
+                            </button>
+                            <button
+                                onClick={() => setView('profile')}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontWeight: '500',
+                                    fontSize: '14px',
+                                    background: view === 'profile' ? 'var(--bg-secondary)' : 'transparent',
+                                    boxShadow: view === 'profile' ? 'var(--shadow-sm)' : 'none',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                Perfil
+                            </button>
+                        </div>
+
+                        {view === 'clock' ? (
+                            <div className="animate-fade-in">
+                                {/* Reloj */}
+                                <Card style={{ textAlign: 'center', marginBottom: '20px' }}>
+                                    <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>
+                                        {Utils.formatDate(currentTime, 'long')}
+                                    </p>
+                                    <p style={{
+                                        fontSize: '56px',
+                                        fontFamily: 'var(--font-mono)',
+                                        fontWeight: '700',
+                                        letterSpacing: '-2px'
+                                    }}>
+                                        {currentTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                    </p>
+                                    <Badge variant={status.color} style={{ marginTop: '12px' }}>
+                                        {status.label}
+                                    </Badge>
+                                </Card>
+
+                                {/* Botones de fichaje */}
+                                <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+                                    <Button
+                                        variant="success"
+                                        size="xl"
+                                        fullWidth
+                                        onClick={handleCheckIn}
+                                        disabled={todayRecord?.checkIn}
+                                        icon={<Icons.LogIn />}
+                                    >
+                                        Entrada
+                                    </Button>
+                                    <Button
+                                        variant="danger"
+                                        size="xl"
+                                        fullWidth
+                                        onClick={handleCheckOut}
+                                        disabled={!todayRecord?.checkIn || todayRecord?.checkOut}
+                                        icon={<Icons.LogOut />}
+                                    >
+                                        Salida
+                                    </Button>
+                                </div>
+
+                                {/* Info del día */}
+                                {todayRecord && (
+                                    <Card>
+                                        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px' }}>
+                                            Registro de hoy
+                                        </h3>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                            <div>
+                                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Entrada</p>
+                                                <p style={{ fontSize: '18px', fontWeight: '600', fontFamily: 'var(--font-mono)' }}>
+                                                    {todayRecord.checkIn ? Utils.formatTime(todayRecord.checkIn) : '-'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Salida</p>
+                                                <p style={{ fontSize: '18px', fontWeight: '600', fontFamily: 'var(--font-mono)' }}>
+                                                    {todayRecord.checkOut ? Utils.formatTime(todayRecord.checkOut) : '-'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Tipo</p>
+                                                <Badge variant={todayRecord.checkType === 'remoto' ? 'info' : 'default'}>
+                                                    {todayRecord.checkType === 'remoto' ? 'Remoto' : 'Presencial'}
+                                                </Badge>
+                                            </div>
+                                            <div>
+                                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Horas</p>
+                                                <p style={{ fontSize: '18px', fontWeight: '600' }}>
+                                                    {Utils.formatHours(todayRecord.hoursWorked)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {todayRecord.observations && (
+                                            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-light)' }}>
+                                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Observaciones</p>
+                                                <p style={{ fontSize: '14px' }}>{todayRecord.observations}</p>
+                                            </div>
+                                        )}
+                                    </Card>
+                                )}
+                            </div>
+                        ) : view === 'history' ? (
+                            <div className="animate-fade-in">
+                                <Card padding={false}>
+                                    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)' }}>
+                                        <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Mi Historial</h3>
+                                    </div>
+                                    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                        <div>
+                                            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Horas trabajadas del periodo</p>
+                                            <p style={{ fontSize: '22px', fontWeight: '700' }}>{Utils.formatHours(totalWorked)}</p>
+                                        </div>
+                                        <div>
+                                            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Horas contratadas</p>
+                                            <p style={{ fontSize: '22px', fontWeight: '700' }}>{Utils.formatHours(Number(profileForm.hoursContracted || 0))}</p>
+                                        </div>
+                                        <div>
+                                            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Balance</p>
+                                            <Badge variant={hoursBalance.variant}>{hoursBalance.label}</Badge>
+                                        </div>
+                                    </div>
+                                    {records.length === 0 ? (
+                                        <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                                            <p style={{ color: 'var(--text-tertiary)' }}>No hay registros</p>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            {records.slice(0, 20).map((record, index) => (
+                                                <div
+                                                    key={record.id}
+                                                    style={{
+                                                        padding: '16px 20px',
+                                                        borderBottom: index < records.length - 1 ? '1px solid var(--border-light)' : 'none',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between'
+                                                    }}
+                                                >
+                                                    <div>
+                                                        <p style={{ fontWeight: '500', marginBottom: '4px' }}>
+                                                            {Utils.formatDate(record.date, 'long')}
+                                                        </p>
+                                                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                                            {record.checkIn ? Utils.formatTime(record.checkIn) : '-'} 
+                                                            {' → '}
+                                                            {record.checkOut ? Utils.formatTime(record.checkOut) : '-'}
+                                                        </p>
+                                                    </div>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <p style={{ fontWeight: '600', fontFamily: 'var(--font-mono)' }}>
+                                                            {Utils.formatHours(record.hoursWorked)}
+                                                        </p>
+                                                        <Badge 
+                                                            variant={record.checkType === 'remoto' ? 'info' : 'default'}
+                                                            style={{ marginTop: '4px' }}
+                                                        >
+                                                            {record.checkType === 'remoto' ? 'Remoto' : 'Presencial'}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </Card>
+                            </div>
+                        ) : (
+                            <div className="animate-fade-in">
+                                <Card>
+                                    <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Mi perfil</h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                                        <Input label="Nombre" value={`${user.name} ${user.lastName}`} disabled />
+                                        <Input label="Email" value={user.email} disabled />
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                                        <Input
+                                            label="Nueva contraseña"
+                                            type="password"
+                                            value={profileForm.password}
+                                            onChange={(e) => setProfileForm(prev => ({ ...prev, password: e.target.value }))}
+                                            placeholder="Dejar vacío para mantener"
+                                        />
+                                        <Input
+                                            label="Horas contratadas del periodo"
+                                            type="number"
+                                            min="0"
+                                            step="0.5"
+                                            value={profileForm.hoursContracted}
+                                            onChange={(e) => setProfileForm(prev => ({ ...prev, hoursContracted: e.target.value }))}
+                                        />
+                                    </div>
+                                    <Card style={{ marginBottom: '20px', background: 'var(--bg-tertiary)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                            <div>
+                                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Total trabajado</p>
+                                                <p style={{ fontSize: '24px', fontWeight: '700' }}>{Utils.formatHours(totalWorked)}</p>
+                                            </div>
+                                            <div>
+                                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Balance actual</p>
+                                                <Badge variant={hoursBalance.variant}>{hoursBalance.label}</Badge>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                    <Button variant="primary" onClick={handleProfileSave} loading={savingProfile}>
+                                        Guardar perfil
+                                    </Button>
+                                </Card>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Modal de observaciones */}
+                    <Modal
+                        isOpen={showObservationModal}
+                        onClose={() => {
+                            setShowObservationModal(false);
+                            setPendingAction(null);
+                            setObservation('');
+                        }}
+                        title={pendingAction === 'checkIn' ? 'Fichar Entrada' : 'Fichar Salida'}
+                    >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            {pendingAction === 'checkIn' && (
+                                <Select
+                                    label="Tipo de fichaje"
+                                    value={checkType}
+                                    onChange={(e) => setCheckType(e.target.value)}
+                                    options={[
+                                        { value: 'presencial', label: 'Presencial' },
+                                        { value: 'remoto', label: 'Remoto / Teletrabajo' }
+                                    ]}
+                                />
+                            )}
+                            
+                            <TextArea
+                                label="Observaciones (opcional)"
+                                placeholder="Ej: Visita a cliente, reunión externa..."
+                                value={observation}
+                                onChange={(e) => setObservation(e.target.value)}
+                            />
+
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <Button
+                                    variant="secondary"
+                                    fullWidth
+                                    onClick={() => {
+                                        setShowObservationModal(false);
+                                        setPendingAction(null);
+                                        setObservation('');
+                                    }}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    variant={pendingAction === 'checkIn' ? 'success' : 'danger'}
+                                    fullWidth
+                                    onClick={confirmAction}
+                                    loading={loading}
+                                    icon={<Icons.Check />}
+                                >
+                                    Confirmar
+                                </Button>
+                            </div>
+                        </div>
+                    </Modal>
+                </div>
+            );
+        };
+
+        // ============================================
+        // VISTA DE ADMINISTRADOR
+        // ============================================
+        
+        const AdminView = () => {
+            const { user, company, logout } = useAuth();
+            const { addToast } = useToast();
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [users, setUsers] = useState([]);
+            const [records, setRecords] = useState([]);
+            const [logs, setLogs] = useState([]);
+            const [showUserModal, setShowUserModal] = useState(false);
+            const [editingUser, setEditingUser] = useState(null);
+            const [showRecordModal, setShowRecordModal] = useState(false);
+            const [editingRecord, setEditingRecord] = useState(null);
+            
+            // Filtros
+            const [filterUser, setFilterUser] = useState('');
+            const [filterDateFrom, setFilterDateFrom] = useState('');
+            const [filterDateTo, setFilterDateTo] = useState('');
+
+            useEffect(() => {
+                loadData();
+            }, [company, user]);
+
+            const loadData = () => {
+                // Solo cargar datos de la empresa actual
+                setUsers(DataService.getManageableUsers(user.role, company.id));
+                setRecords(DataService.getRecordsByCompany(company.id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+                setLogs(DataService.getLogsByCompany(company.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+            };
+
+            // Estadísticas
+            const stats = useMemo(() => {
+                const today = Utils.getTodayString();
+                const activeUsers = users.filter(u => u.status === 'active' && u.role === 'employee').length;
+                const todayRecords = records.filter(r => r.date === today);
+                const openSessions = todayRecords.filter(r => r.checkIn && !r.checkOut).length;
+                const totalHoursToday = todayRecords.reduce((acc, r) => acc + (r.hoursWorked || 0), 0);
+                
+                return { activeUsers, todayRecords: todayRecords.length, openSessions, totalHoursToday };
+            }, [users, records]);
+
+            // Filtrar registros
+            const filteredRecords = useMemo(() => {
+                return records.filter(r => {
+                    if (filterUser && r.userId !== filterUser) return false;
+                    if (filterDateFrom && r.date < filterDateFrom) return false;
+                    if (filterDateTo && r.date > filterDateTo) return false;
+                    return true;
+                });
+            }, [records, filterUser, filterDateFrom, filterDateTo]);
+
+            // Exportar CSV
+            const exportCSV = () => {
+                const headers = ['Fecha', 'Empleado', 'Email', 'Entrada', 'Salida', 'Horas', 'Tipo', 'Observaciones'];
+                const rows = filteredRecords.map(r => [
+                    r.date,
+                    r.userName,
+                    r.userEmail,
+                    r.checkIn ? Utils.formatTime(r.checkIn) : '',
+                    r.checkOut ? Utils.formatTime(r.checkOut) : '',
+                    r.hoursWorked || '',
+                    r.checkType,
+                    r.observations || ''
+                ]);
+                
+                const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `fichajes_${company.code}_${Utils.getTodayString()}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                addToast('Archivo CSV descargado', 'success');
+            };
+
+            // CRUD Usuarios
+            const UserForm = ({ user: editUser, onClose }) => {
+                const [formData, setFormData] = useState({
+                    name: editUser?.name || '',
+                    lastName: editUser?.lastName || '',
+                    email: editUser?.email || '',
+                    password: '',
+                    role: editUser?.role || 'employee',
+                    companyId: editUser?.companyId || company.id,
+                    hoursContracted: editUser?.hoursContracted || 160,
+                    status: editUser?.status || 'active'
+                });
+                const [formErrors, setFormErrors] = useState({});
+                const [saving, setSaving] = useState(false);
+
+                const handleSave = async () => {
+                    const errors = {};
+                    if (!formData.name) errors.name = 'Requerido';
+                    if (!formData.lastName) errors.lastName = 'Requerido';
+                    if (!formData.email) errors.email = 'Requerido';
+                    else if (!Utils.validateEmail(formData.email)) errors.email = 'Email no válido';
+                    if (!editUser && !formData.password) errors.password = 'Requerido';
+                    else if (formData.password && formData.password.length < 6) errors.password = 'Mínimo 6 caracteres';
+
+                    if (Object.keys(errors).length > 0) {
+                        setFormErrors(errors);
+                        return;
+                    }
+
+                    setSaving(true);
+                    await new Promise(r => setTimeout(r, 500));
+
+                    if (editUser) {
+                        const updates = { ...formData };
+                        if (!updates.password) delete updates.password;
+                        DataService.updateUser(editUser.id, updates, user.role === 'superadmin' ? null : company.id);
+                        addToast('Usuario actualizado', 'success');
+                    } else {
+                        const result = DataService.createUser(formData, user.role === 'superadmin' ? formData.companyId : company.id);
+                        if (result.error) {
+                            addToast(result.error, 'error');
+                            setSaving(false);
+                            return;
+                        }
+                        addToast('Usuario creado', 'success');
+                    }
+
+                    setSaving(false);
+                    loadData();
+                    onClose();
+                };
+
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                            <Input
+                                label="Nombre"
+                                value={formData.name}
+                                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                error={formErrors.name}
+                            />
+                            <Input
+                                label="Apellidos"
+                                value={formData.lastName}
+                                onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                                error={formErrors.lastName}
+                            />
+                        </div>
+                        <Input
+                            label="Email"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                            error={formErrors.email}
+                        />
+                        <Input
+                            label={editUser ? "Nueva contraseña (dejar vacío para mantener)" : "Contraseña"}
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                            error={formErrors.password}
+                        />
+                        {user.role === 'superadmin' && (
+                            <Select
+                                label="Empresa"
+                                value={formData.companyId}
+                                onChange={(e) => setFormData(prev => ({ ...prev, companyId: e.target.value }))}
+                                options={DataService.getCompanies().filter(c => c.id !== 'global_root').map(c => ({ value: c.id, label: `${c.name} (${c.code})` }))}
+                            />
+                        )}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                            <Select
+                                label="Rol"
+                                value={formData.role}
+                                onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                                options={[
+                                    { value: 'employee', label: 'Empleado' },
+                                    { value: 'admin', label: 'Administrador' }
+                                ]}
+                            />
+                            <Input
+                                label="Horas contratadas"
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                value={formData.hoursContracted}
+                                onChange={(e) => setFormData(prev => ({ ...prev, hoursContracted: e.target.value }))}
+                            />
+                            <Select
+                                label="Estado"
+                                value={formData.status}
+                                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                                options={[
+                                    { value: 'active', label: 'Activo' },
+                                    { value: 'inactive', label: 'Inactivo' }
+                                ]}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                            <Button variant="secondary" fullWidth onClick={onClose}>Cancelar</Button>
+                            <Button variant="primary" fullWidth onClick={handleSave} loading={saving}>
+                                {editUser ? 'Guardar cambios' : 'Crear usuario'}
+                            </Button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // Editar registro
+            const RecordForm = ({ record, onClose }) => {
+                const [formData, setFormData] = useState({
+                    checkIn: record.checkIn ? record.checkIn.slice(0, 16) : '',
+                    checkOut: record.checkOut ? record.checkOut.slice(0, 16) : '',
+                    checkType: record.checkType || 'presencial',
+                    observations: record.observations || ''
+                });
+                const [saving, setSaving] = useState(false);
+
+                const handleSave = async () => {
+                    setSaving(true);
+                    await new Promise(r => setTimeout(r, 500));
+
+                    const checkInDate = formData.checkIn ? new Date(formData.checkIn).toISOString() : null;
+                    const checkOutDate = formData.checkOut ? new Date(formData.checkOut).toISOString() : null;
+                    const hoursWorked = checkInDate && checkOutDate ? Utils.calculateHours(checkInDate, checkOutDate) : null;
+
+                    DataService.updateRecord(record.id, {
+                        checkIn: checkInDate,
+                        checkOut: checkOutDate,
+                        hoursWorked,
+                        checkType: formData.checkType,
+                        observations: formData.observations,
+                        status: checkOutDate ? 'complete' : 'incomplete'
+                    }, company.id, user.id);
+
+                    addToast('Registro actualizado', 'success');
+                    setSaving(false);
+                    loadData();
+                    onClose();
+                };
+
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ padding: '12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+                            <p style={{ fontSize: '14px' }}>
+                                <strong>{record.userName}</strong> - {Utils.formatDate(record.date, 'long')}
+                            </p>
+                        </div>
+                        <Input
+                            label="Hora de entrada"
+                            type="datetime-local"
+                            value={formData.checkIn}
+                            onChange={(e) => setFormData(prev => ({ ...prev, checkIn: e.target.value }))}
+                        />
+                        <Input
+                            label="Hora de salida"
+                            type="datetime-local"
+                            value={formData.checkOut}
+                            onChange={(e) => setFormData(prev => ({ ...prev, checkOut: e.target.value }))}
+                        />
+                        <Select
+                            label="Tipo"
+                            value={formData.checkType}
+                            onChange={(e) => setFormData(prev => ({ ...prev, checkType: e.target.value }))}
+                            options={[
+                                { value: 'presencial', label: 'Presencial' },
+                                { value: 'remoto', label: 'Remoto' }
+                            ]}
+                        />
+                        <TextArea
+                            label="Observaciones"
+                            value={formData.observations}
+                            onChange={(e) => setFormData(prev => ({ ...prev, observations: e.target.value }))}
+                        />
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                            <Button variant="secondary" fullWidth onClick={onClose}>Cancelar</Button>
+                            <Button variant="primary" fullWidth onClick={handleSave} loading={saving}>
+                                Guardar cambios
+                            </Button>
+                        </div>
+                    </div>
+                );
+            };
+
+            const CompanyForm = ({ onCreated }) => {
+                const [formData, setFormData] = useState({ name: '', code: '' });
+                const [saving, setSaving] = useState(false);
+
+                const handleCreate = async () => {
+                    if (!formData.name || !formData.code) {
+                        addToast('Nombre y código son obligatorios', 'warning');
+                        return;
+                    }
+                    setSaving(true);
+                    await new Promise(r => setTimeout(r, 400));
+                    DataService.createCompany({
+                        name: formData.name,
+                        code: formData.code.toUpperCase()
+                    });
+                    addToast('Empresa creada', 'success');
+                    setFormData({ name: '', code: '' });
+                    setSaving(false);
+                    onCreated?.();
+                };
+
+                return (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px 180px', gap: '16px', alignItems: 'end' }}>
+                        <Input
+                            label="Nombre de la empresa"
+                            value={formData.name}
+                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        />
+                        <Input
+                            label="Código de acceso"
+                            value={formData.code}
+                            onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                        />
+                        <Button variant="primary" onClick={handleCreate} loading={saving} icon={<Icons.Plus />}>
+                            Crear empresa
+                        </Button>
+                    </div>
+                );
+            };
+
+            return (
+                <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+                    {/* Header */}
+                    <header style={{
+                        background: 'var(--bg-secondary)',
+                        borderBottom: '1px solid var(--border-light)',
+                        padding: '16px 20px',
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 100
+                    }}>
+                        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '2px' }}>
+                                    {company.name} ({company.code})
+                                </p>
+                                <h1 style={{ fontSize: '18px', fontWeight: '600' }}>
+                                    {user.role === 'superadmin' ? 'Panel de Administración Global' : 'Panel de Administración'}
+                                </h1>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                                    {user.name} {user.lastName}
+                                </span>
+                                <Button variant="ghost" size="sm" onClick={logout} icon={<Icons.LogOut />}>
+                                    Salir
+                                </Button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+                        {/* Tabs */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '8px',
+                            marginBottom: '24px',
+                            background: 'var(--bg-tertiary)',
+                            padding: '4px',
+                            borderRadius: 'var(--radius-md)',
+                            overflowX: 'auto'
+                        }}>
+                            {[
+                                { id: 'dashboard', label: 'Dashboard', icon: <Icons.Activity /> },
+                                ...(user.role === 'superadmin' ? [{ id: 'companies', label: 'Empresas', icon: <Icons.Building /> }] : []),
+                                { id: 'records', label: 'Fichajes', icon: <Icons.Clock /> },
+                                { id: 'users', label: 'Usuarios', icon: <Icons.Users /> },
+                                { id: 'logs', label: 'Actividad', icon: <Icons.Calendar /> }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '10px 16px',
+                                        borderRadius: 'var(--radius-sm)',
+                                        fontWeight: '500',
+                                        fontSize: '14px',
+                                        background: activeTab === tab.id ? 'var(--bg-secondary)' : 'transparent',
+                                        boxShadow: activeTab === tab.id ? 'var(--shadow-sm)' : 'none',
+                                        transition: 'all 0.2s ease',
+                                        whiteSpace: 'nowrap'
+                                    }}
+                                >
+                                    {tab.icon}
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+
+                        {activeTab === 'companies' && user.role === 'superadmin' && (
+                            <div className="animate-fade-in">
+                                <Card style={{ marginBottom: '20px' }}>
+                                    <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Crear empresa</h3>
+                                    <CompanyForm onCreated={() => loadData()} />
+                                </Card>
+                                <Card padding={false}>
+                                    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)' }}>
+                                        <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Empresas registradas</h3>
+                                    </div>
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                            <thead>
+                                                <tr style={{ background: 'var(--bg-tertiary)' }}>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Empresa</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Código</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Estado</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '13px', fontWeight: '600' }}>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {DataService.getCompanies().filter(c => c.id !== 'global_root').map(comp => (
+                                                    <tr key={comp.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                                                        <td style={{ padding: '12px 16px', fontWeight: '500' }}>{comp.name}</td>
+                                                        <td style={{ padding: '12px 16px' }}>{comp.code}</td>
+                                                        <td style={{ padding: '12px 16px' }}>
+                                                            <Badge variant={comp.status === 'active' ? 'success' : 'danger'}>
+                                                                {comp.status === 'active' ? 'Activa' : 'Inactiva'}
+                                                            </Badge>
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    if (confirm(`¿Eliminar la empresa ${comp.name}? También se eliminarán sus usuarios y fichajes.`)) {
+                                                                        DataService.deleteCompany(comp.id);
+                                                                        addToast('Empresa eliminada', 'success');
+                                                                        loadData();
+                                                                    }
+                                                                }}
+                                                                icon={<Icons.Trash />}
+                                                                style={{ color: 'var(--accent-danger)' }}
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </Card>
+                            </div>
+                        )}
+
+                        {/* Dashboard */}
+                        {activeTab === 'dashboard' && (
+                            <div className="animate-fade-in">
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                                    <Card>
+                                        <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Empleados activos</p>
+                                        <p style={{ fontSize: '32px', fontWeight: '700' }}>{stats.activeUsers}</p>
+                                    </Card>
+                                    <Card>
+                                        <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Fichajes hoy</p>
+                                        <p style={{ fontSize: '32px', fontWeight: '700' }}>{stats.todayRecords}</p>
+                                    </Card>
+                                    <Card>
+                                        <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Jornadas abiertas</p>
+                                        <p style={{ fontSize: '32px', fontWeight: '700', color: stats.openSessions > 0 ? 'var(--accent-warning)' : 'inherit' }}>
+                                            {stats.openSessions}
+                                        </p>
+                                    </Card>
+                                    <Card>
+                                        <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Horas hoy</p>
+                                        <p style={{ fontSize: '32px', fontWeight: '700' }}>{Utils.formatHours(stats.totalHoursToday)}</p>
+                                    </Card>
+                                </div>
+
+                                {/* Últimos fichajes */}
+                                <Card padding={false}>
+                                    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)' }}>
+                                        <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Últimos fichajes</h3>
+                                    </div>
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                            <thead>
+                                                <tr style={{ background: 'var(--bg-tertiary)' }}>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Empleado</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Fecha</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Entrada</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Salida</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Horas</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {records.slice(0, 10).map(record => (
+                                                    <tr key={record.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                                                        <td style={{ padding: '12px 16px' }}>{record.userName}</td>
+                                                        <td style={{ padding: '12px 16px' }}>{Utils.formatDate(record.date)}</td>
+                                                        <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)' }}>
+                                                            {record.checkIn ? Utils.formatTime(record.checkIn) : '-'}
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)' }}>
+                                                            {record.checkOut ? Utils.formatTime(record.checkOut) : '-'}
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px', fontWeight: '500' }}>
+                                                            {Utils.formatHours(record.hoursWorked)}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </Card>
+                            </div>
+                        )}
+
+                        {/* Fichajes */}
+                        {activeTab === 'records' && (
+                            <div className="animate-fade-in">
+                                {/* Filtros */}
+                                <Card style={{ marginBottom: '20px' }}>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+                                        <Select
+                                            label="Empleado"
+                                            value={filterUser}
+                                            onChange={(e) => setFilterUser(e.target.value)}
+                                            options={[
+                                                { value: '', label: 'Todos' },
+                                                ...users.filter(u => u.role === 'employee').map(u => ({
+                                                    value: u.id,
+                                                    label: `${u.name} ${u.lastName}`
+                                                }))
+                                            ]}
+                                            fullWidth={false}
+                                            style={{ minWidth: '200px' }}
+                                        />
+                                        <Input
+                                            label="Desde"
+                                            type="date"
+                                            value={filterDateFrom}
+                                            onChange={(e) => setFilterDateFrom(e.target.value)}
+                                            fullWidth={false}
+                                            style={{ minWidth: '160px' }}
+                                        />
+                                        <Input
+                                            label="Hasta"
+                                            type="date"
+                                            value={filterDateTo}
+                                            onChange={(e) => setFilterDateTo(e.target.value)}
+                                            fullWidth={false}
+                                            style={{ minWidth: '160px' }}
+                                        />
+                                        <Button variant="secondary" onClick={() => { setFilterUser(''); setFilterDateFrom(''); setFilterDateTo(''); }}>
+                                            Limpiar
+                                        </Button>
+                                        <Button variant="primary" onClick={exportCSV} icon={<Icons.Download />}>
+                                            Exportar CSV
+                                        </Button>
+                                    </div>
+                                </Card>
+
+                                {/* Tabla */}
+                                <Card padding={false}>
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                            <thead>
+                                                <tr style={{ background: 'var(--bg-tertiary)' }}>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Empleado</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Fecha</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Entrada</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Salida</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Horas</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Tipo</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Estado</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '13px', fontWeight: '600' }}>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filteredRecords.map(record => (
+                                                    <tr key={record.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                                                        <td style={{ padding: '12px 16px' }}>
+                                                            <div>
+                                                                <p style={{ fontWeight: '500' }}>{record.userName}</p>
+                                                                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{record.userEmail}</p>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px' }}>{Utils.formatDate(record.date)}</td>
+                                                        <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)' }}>
+                                                            {record.checkIn ? Utils.formatTime(record.checkIn) : '-'}
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)' }}>
+                                                            {record.checkOut ? Utils.formatTime(record.checkOut) : '-'}
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px', fontWeight: '500' }}>
+                                                            {Utils.formatHours(record.hoursWorked)}
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px' }}>
+                                                            <Badge variant={record.checkType === 'remoto' ? 'info' : 'default'}>
+                                                                {record.checkType === 'remoto' ? 'Remoto' : 'Presencial'}
+                                                            </Badge>
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px' }}>
+                                                            <Badge variant={record.status === 'complete' ? 'success' : 'warning'}>
+                                                                {record.status === 'complete' ? 'Completo' : 'Incompleto'}
+                                                            </Badge>
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => { setEditingRecord(record); setShowRecordModal(true); }}
+                                                                icon={<Icons.Edit />}
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {filteredRecords.length === 0 && (
+                                        <div style={{ padding: '40px', textAlign: 'center' }}>
+                                            <p style={{ color: 'var(--text-tertiary)' }}>No se encontraron registros</p>
+                                        </div>
+                                    )}
+                                </Card>
+                            </div>
+                        )}
+
+                        {/* Usuarios */}
+                        {activeTab === 'users' && (
+                            <div className="animate-fade-in">
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+                                    <Button 
+                                        variant="primary" 
+                                        onClick={() => { setEditingUser(null); setShowUserModal(true); }}
+                                        icon={<Icons.Plus />}
+                                    >
+                                        Nuevo usuario
+                                    </Button>
+                                </div>
+
+                                <Card padding={false}>
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                            <thead>
+                                                <tr style={{ background: 'var(--bg-tertiary)' }}>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Nombre</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Email</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Rol</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Estado</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Creado</th>
+                                                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '13px', fontWeight: '600' }}>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {users.map(u => (
+                                                    <tr key={u.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                                                        <td style={{ padding: '12px 16px', fontWeight: '500' }}>{u.name} {u.lastName}</td>
+                                                        <td style={{ padding: '12px 16px' }}>{u.email}</td>
+                                                        <td style={{ padding: '12px 16px' }}>
+                                                            <Badge variant={u.role === 'admin' ? 'info' : 'default'}>
+                                                                {u.role === 'admin' ? 'Admin' : 'Empleado'}
+                                                            </Badge>
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px' }}>
+                                                            <Badge variant={u.status === 'active' ? 'success' : 'danger'}>
+                                                                {u.status === 'active' ? 'Activo' : 'Inactivo'}
+                                                            </Badge>
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                                            {Utils.formatDate(u.createdAt)}
+                                                        </td>
+                                                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => { setEditingUser(u); setShowUserModal(true); }}
+                                                                    icon={<Icons.Edit />}
+                                                                />
+                                                                {u.id !== user.id && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => {
+                                                                            if (confirm('¿Eliminar este usuario?')) {
+                                                                                DataService.deleteUser(u.id, company.id);
+                                                                                addToast('Usuario eliminado', 'success');
+                                                                                loadData();
+                                                                            }
+                                                                        }}
+                                                                        icon={<Icons.Trash />}
+                                                                        style={{ color: 'var(--accent-danger)' }}
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </Card>
+                            </div>
+                        )}
+
+                        {/* Logs */}
+                        {activeTab === 'logs' && (
+                            <div className="animate-fade-in">
+                                <Card padding={false}>
+                                    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)' }}>
+                                        <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Registro de actividad</h3>
+                                    </div>
+                                    <div style={{ maxHeight: '600px', overflow: 'auto' }}>
+                                        {logs.slice(0, 100).map(log => (
+                                            <div key={log.id} style={{
+                                                padding: '12px 20px',
+                                                borderBottom: '1px solid var(--border-light)',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'flex-start',
+                                                gap: '16px'
+                                            }}>
+                                                <div>
+                                                    <Badge style={{ marginRight: '8px' }}>{log.action}</Badge>
+                                                    <span style={{ fontSize: '14px' }}>{log.description}</span>
+                                                </div>
+                                                <span style={{ 
+                                                    fontSize: '12px', 
+                                                    color: 'var(--text-tertiary)',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    {Utils.formatDateTime(log.timestamp)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Card>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Modal Usuario */}
+                    <Modal
+                        isOpen={showUserModal}
+                        onClose={() => { setShowUserModal(false); setEditingUser(null); }}
+                        title={editingUser ? 'Editar usuario' : 'Nuevo usuario'}
+                        size="md"
+                    >
+                        <UserForm 
+                            user={editingUser} 
+                            onClose={() => { setShowUserModal(false); setEditingUser(null); }} 
+                        />
+                    </Modal>
+
+                    {/* Modal Registro */}
+                    <Modal
+                        isOpen={showRecordModal}
+                        onClose={() => { setShowRecordModal(false); setEditingRecord(null); }}
+                        title="Editar registro"
+                        size="md"
+                    >
+                        {editingRecord && (
+                            <RecordForm 
+                                record={editingRecord} 
+                                onClose={() => { setShowRecordModal(false); setEditingRecord(null); }} 
+                            />
+                        )}
+                    </Modal>
+                </div>
+            );
+        };
+
+        // ============================================
+        // APP PRINCIPAL
+        // ============================================
+        
+        const App = () => {
+            const { user, loading } = useAuth();
+
+            if (loading) {
+                return (
+                    <div style={{
+                        minHeight: '100vh',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'var(--bg-primary)'
+                    }}>
+                        <div style={{
+                            width: '48px',
+                            height: '48px',
+                            border: '3px solid var(--border-light)',
+                            borderTopColor: 'var(--accent-primary)',
+                            borderRadius: '50%',
+                            animation: 'spin 0.8s linear infinite'
+                        }} />
+                    </div>
+                );
+            }
+
+            if (!user) {
+                return <LoginScreen />;
+            }
+
+            return (user.role === 'admin' || user.role === 'superadmin') ? <AdminView /> : <EmployeeView />;
+        };
+
+        // Render
+        ReactDOM.createRoot(document.getElementById('root')).render(
+            <ToastProvider>
+                <AuthProvider>
+                    <App />
+                </AuthProvider>
+            </ToastProvider>
+        );
+    </script>
+</body>
+</html>
