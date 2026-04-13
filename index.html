@@ -144,6 +144,161 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useMemo, createContext, useContext, useRef } = React;
 
+        const API_URL = 'https://script.google.com/macros/s/AKfycbydsJHVAaUJiejSfkGl9MCsX0YAqiyTEnHXRWGa3ytqX132h8Pt6Ds75yc6GruGmd6G/exec';
+
+        const ApiService = {
+            async getCompanies() {
+                const res = await fetch(`${API_URL}?action=companies`);
+                return await res.json();
+            },
+
+            async login(companyCode, email, password) {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'login',
+                        companyCode,
+                        email,
+                        password,
+                        userAgent: navigator.userAgent
+                    })
+                });
+                return await res.json();
+            },
+
+            async bootstrap(companyId, userId = '') {
+                const res = await fetch(`${API_URL}?action=bootstrap&companyId=${encodeURIComponent(companyId)}&userId=${encodeURIComponent(userId)}`);
+                return await res.json();
+            },
+
+            async getUsersByCompany(companyId) {
+                const res = await fetch(`${API_URL}?action=usersByCompany&companyId=${encodeURIComponent(companyId)}`);
+                return await res.json();
+            },
+
+            async getRecordsByCompany(companyId) {
+                const res = await fetch(`${API_URL}?action=recordsByCompany&companyId=${encodeURIComponent(companyId)}`);
+                return await res.json();
+            },
+
+            async getLogsByCompany(companyId) {
+                const res = await fetch(`${API_URL}?action=logsByCompany&companyId=${encodeURIComponent(companyId)}`);
+                return await res.json();
+            },
+
+            async getTodayRecord(userId, companyId) {
+                const res = await fetch(`${API_URL}?action=todayRecord&userId=${encodeURIComponent(userId)}&companyId=${encodeURIComponent(companyId)}`);
+                return await res.json();
+            },
+
+            async getRecordsByUser(userId, companyId) {
+                const res = await fetch(`${API_URL}?action=recordsByUser&userId=${encodeURIComponent(userId)}&companyId=${encodeURIComponent(companyId)}`);
+                return await res.json();
+            },
+
+            async createUser(user, companyId, performedBy) {
+                const payload = {
+                    action: 'createUser',
+                    user,
+                    companyId,
+                    performedBy
+                };
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+                return await res.json();
+            },
+
+            async updateUser(userId, companyId, updates, performedBy) {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'updateUser',
+                        userId,
+                        companyId,
+                        updates,
+                        performedBy
+                    })
+                });
+                return await res.json();
+            },
+
+            async deleteUser(userId, companyId, performedBy) {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'deleteUser',
+                        userId,
+                        companyId,
+                        performedBy
+                    })
+                });
+                return await res.json();
+            },
+
+            async createCompany(company, performedBy = null) {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'createCompany',
+                        company,
+                        performedBy
+                    })
+                });
+                return await res.json();
+            },
+
+            async checkIn(payload) {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'checkIn',
+                        ...payload,
+                        userAgent: navigator.userAgent
+                    })
+                });
+                return await res.json();
+            },
+
+            async checkOut(userId, companyId, observation = '') {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'checkOut',
+                        userId,
+                        companyId,
+                        observation,
+                        userAgent: navigator.userAgent
+                    })
+                });
+                return await res.json();
+            },
+
+            async updateRecord(recordId, companyId, updates, adminId) {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'updateRecord',
+                        recordId,
+                        companyId,
+                        updates,
+                        adminId
+                    })
+                });
+                return await res.json();
+            }
+        };
+
+
         // ============================================
         // CONFIGURACIÓN Y DATOS INICIALES
         // ============================================
@@ -357,86 +512,38 @@
         // GESTIÓN DE DATOS MULTIEMPRESA
         // ============================================
         
+
         const DataService = {
-            // Inicializar datos por defecto
-            init: () => {
-                const companies = DataService.getCompanies();
-                if (companies.length === 0) {
-                    DataService.saveCompanies(DEFAULT_COMPANIES);
-                    DataService.saveUsers(DEFAULT_USERS);
-                }
-            },
-            
-            // ===== EMPRESAS =====
+            init: () => {},
+
             getCompanies: () => {
                 const data = localStorage.getItem(CONFIG.LOCAL_STORAGE_KEYS.COMPANIES);
                 return data ? JSON.parse(data) : [];
             },
-            
+
             saveCompanies: (companies) => {
-                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.COMPANIES, JSON.stringify(companies));
+                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.COMPANIES, JSON.stringify(companies || []));
             },
-            
+
             getCompanyById: (id) => {
                 return DataService.getCompanies().find(c => c.id === id);
             },
-            
+
             getCompanyByCode: (code) => {
-                return DataService.getCompanies().find(c => 
+                return DataService.getCompanies().find(c =>
                     c.code.toLowerCase() === code.toLowerCase() && c.status === 'active'
                 );
             },
-            
-            createCompany: (companyData) => {
-                const companies = DataService.getCompanies();
-                const newCompany = {
-                    ...companyData,
-                    id: Utils.generateId('comp'),
-                    createdAt: new Date().toISOString(),
-                    status: 'active',
-                    settings: companyData.settings || { allowRemote: true, requireObservations: false }
-                };
-                companies.push(newCompany);
-                DataService.saveCompanies(companies);
-                DataService.addLog('CREATE_COMPANY', newCompany.id, `Empresa creada: ${newCompany.name}`);
-                return newCompany;
-            },
-            
-            updateCompany: (id, updates) => {
-                const companies = DataService.getCompanies();
-                const index = companies.findIndex(c => c.id === id);
-                if (index !== -1) {
-                    companies[index] = { ...companies[index], ...updates, updatedAt: new Date().toISOString() };
-                    DataService.saveCompanies(companies);
-                    return companies[index];
-                }
-                return null;
-            },
 
-            deleteCompany: (id) => {
-                if (id === 'global_root') return false;
-                const company = DataService.getCompanyById(id);
-                if (!company) return false;
-                const companies = DataService.getCompanies().filter(c => c.id !== id);
-                const users = DataService.getUsers().filter(u => u.companyId !== id);
-                const records = DataService.getRecords().filter(r => r.companyId !== id);
-                DataService.saveCompanies(companies);
-                DataService.saveUsers(users);
-                DataService.saveRecords(records);
-                DataService.addLog('DELETE_COMPANY', id, `Empresa eliminada: ${company.name}`, null, null);
-                return true;
-            },
-            
-            // ===== USUARIOS (filtrados por empresa) =====
             getUsers: () => {
                 const data = localStorage.getItem(CONFIG.LOCAL_STORAGE_KEYS.USERS);
                 return data ? JSON.parse(data) : [];
             },
-            
+
             saveUsers: (users) => {
-                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.USERS, JSON.stringify(users));
+                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.USERS, JSON.stringify(users || []));
             },
-            
+
             getUsersByCompany: (companyId) => {
                 return DataService.getUsers().filter(u => u.companyId === companyId);
             },
@@ -447,169 +554,62 @@
                 }
                 return DataService.getUsersByCompany(companyId);
             },
-            
+
             getUserById: (id) => {
                 return DataService.getUsers().find(u => u.id === id);
             },
-            
+
             getUserByEmailAndCompany: (email, companyId) => {
-                return DataService.getUsers().find(u => 
-                    u.email.toLowerCase() === email.toLowerCase() && 
+                return DataService.getUsers().find(u =>
+                    u.email.toLowerCase() === email.toLowerCase() &&
                     u.companyId === companyId
                 );
             },
-            
-            createUser: (userData, companyId) => {
-                const users = DataService.getUsers();
-                
-                // Verificar que no exista el email en la misma empresa
-                const exists = users.find(u => 
-                    u.email.toLowerCase() === userData.email.toLowerCase() && 
-                    u.companyId === companyId
-                );
-                if (exists) {
-                    return { error: 'Ya existe un usuario con este email en la empresa' };
-                }
-                
-                const newUser = {
-                    ...userData,
-                    id: Utils.generateId('usr'),
-                    companyId,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
-                users.push(newUser);
-                DataService.saveUsers(users);
-                DataService.addLog('CREATE_USER', newUser.id, `Usuario creado: ${newUser.email}`, null, companyId);
-                return newUser;
-            },
-            
-            updateUser: (id, updates, companyId = null) => {
-                const users = DataService.getUsers();
-                const index = users.findIndex(u => u.id === id && (!companyId || companyId === 'global_root' || u.companyId === companyId));
-                if (index !== -1) {
-                    users[index] = { 
-                        ...users[index], 
-                        ...updates, 
-                        updatedAt: new Date().toISOString() 
-                    };
-                    DataService.saveUsers(users);
-                    DataService.addLog('UPDATE_USER', id, `Usuario actualizado: ${users[index].email}`, null, companyId);
-                    return users[index];
-                }
-                return null;
-            },
-            
-            deleteUser: (id, companyId = null) => {
-                const users = DataService.getUsers();
-                const user = users.find(u => u.id === id && (!companyId || companyId === 'global_root' || u.companyId === companyId));
-                if (!user) return false;
-                
-                const filtered = users.filter(u => u.id !== id);
-                DataService.saveUsers(filtered);
-                DataService.addLog('DELETE_USER', id, `Usuario eliminado: ${user.email}`, null, companyId);
-                return true;
-            },
-            
-            // ===== REGISTROS (filtrados por empresa) =====
+
             getRecords: () => {
                 const data = localStorage.getItem(CONFIG.LOCAL_STORAGE_KEYS.RECORDS);
                 return data ? JSON.parse(data) : [];
             },
-            
+
             saveRecords: (records) => {
-                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.RECORDS, JSON.stringify(records));
+                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.RECORDS, JSON.stringify(records || []));
             },
-            
+
             getRecordsByCompany: (companyId) => {
                 return DataService.getRecords().filter(r => r.companyId === companyId);
             },
-            
+
             getRecordsByUser: (userId, companyId) => {
                 return DataService.getRecords().filter(r => r.userId === userId && r.companyId === companyId);
             },
-            
+
             getTodayRecordForUser: (userId, companyId) => {
                 const today = Utils.getTodayString();
-                return DataService.getRecords().find(r => 
+                return DataService.getRecords().find(r =>
                     r.userId === userId && r.companyId === companyId && r.date === today
                 );
             },
-            
-            createRecord: (recordData, companyId) => {
-                const records = DataService.getRecords();
-                const newRecord = {
-                    ...recordData,
-                    id: Utils.generateId('rec'),
-                    companyId,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
-                records.push(newRecord);
-                DataService.saveRecords(records);
-                return newRecord;
-            },
-            
-            updateRecord: (id, updates, companyId, adminId = null) => {
-                const records = DataService.getRecords();
-                const index = records.findIndex(r => r.id === id && r.companyId === companyId);
-                if (index !== -1) {
-                    const oldRecord = { ...records[index] };
-                    records[index] = { 
-                        ...records[index], 
-                        ...updates, 
-                        updatedAt: new Date().toISOString(),
-                        lastModifiedBy: adminId,
-                        modificationHistory: [
-                            ...(records[index].modificationHistory || []),
-                            {
-                                date: new Date().toISOString(),
-                                modifiedBy: adminId,
-                                changes: updates,
-                                previousValues: oldRecord
-                            }
-                        ]
-                    };
-                    DataService.saveRecords(records);
-                    if (adminId) {
-                        DataService.addLog('MODIFY_RECORD', id, `Registro modificado por admin`, adminId, companyId);
-                    }
-                    return records[index];
-                }
-                return null;
-            },
-            
-            // ===== LOGS (filtrados por empresa) =====
+
             getLogs: () => {
                 const data = localStorage.getItem(CONFIG.LOCAL_STORAGE_KEYS.LOGS);
                 return data ? JSON.parse(data) : [];
             },
-            
+
+            saveLogs: (logs) => {
+                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.LOGS, JSON.stringify(logs || []));
+            },
+
             getLogsByCompany: (companyId) => {
                 return DataService.getLogs().filter(l => l.companyId === companyId);
             },
-            
-            addLog: (action, targetId, description, performedBy = null, companyId = null) => {
-                const logs = DataService.getLogs();
-                logs.push({
-                    id: Utils.generateId('log'),
-                    action,
-                    targetId,
-                    description,
-                    performedBy,
-                    companyId,
-                    timestamp: new Date().toISOString(),
-                    userAgent: navigator.userAgent
-                });
-                localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.LOGS, JSON.stringify(logs));
-            },
-            
-            // ===== SESIÓN =====
+
+            addLog: () => true,
+
             getSession: () => {
                 const data = localStorage.getItem(CONFIG.LOCAL_STORAGE_KEYS.SESSION);
                 return data ? JSON.parse(data) : null;
             },
-            
+
             setSession: (user, company) => {
                 localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.SESSION, JSON.stringify({
                     userId: user.id,
@@ -618,11 +618,34 @@
                     loginAt: new Date().toISOString()
                 }));
             },
-            
+
             clearSession: () => {
                 localStorage.removeItem(CONFIG.LOCAL_STORAGE_KEYS.SESSION);
+            },
+
+            syncCache: async (companyId, userId = '') => {
+                const [companiesRes, bootstrapRes] = await Promise.all([
+                    ApiService.getCompanies(),
+                    companyId ? ApiService.bootstrap(companyId, userId) : Promise.resolve({ success: true, data: { users: [], records: [], logs: [] } })
+                ]);
+
+                if (companiesRes.success) {
+                    DataService.saveCompanies(companiesRes.data);
+                }
+
+                if (bootstrapRes && bootstrapRes.success) {
+                    DataService.saveUsers(bootstrapRes.data.users || []);
+                    DataService.saveRecords(bootstrapRes.data.records || []);
+                    DataService.saveLogs(bootstrapRes.data.logs || []);
+                }
+
+                return {
+                    companies: companiesRes.success ? companiesRes.data : [],
+                    bootstrap: bootstrapRes && bootstrapRes.success ? bootstrapRes.data : { users: [], records: [], logs: [] }
+                };
             }
         };
+
 
         // Inicializar datos
         DataService.init();
@@ -633,67 +656,84 @@
         
         const AuthContext = createContext(null);
 
+
         const AuthProvider = ({ children }) => {
             const [user, setUser] = useState(null);
             const [company, setCompany] = useState(null);
             const [loading, setLoading] = useState(true);
 
             useEffect(() => {
-                const session = DataService.getSession();
-                if (session) {
-                    const userData = DataService.getUserById(session.userId);
-                    const companyData = DataService.getCompanyById(session.companyId);
-                    if (userData && userData.status === 'active' && companyData && companyData.status === 'active') {
-                        setUser(userData);
-                        setCompany(companyData);
-                    } else {
+                const init = async () => {
+                    try {
+                        const session = DataService.getSession();
+
+                        if (!session) {
+                            setLoading(false);
+                            return;
+                        }
+
+                        const { companies, bootstrap } = await DataService.syncCache(session.companyId, session.userId);
+                        const companyData = companies.find(c => c.id === session.companyId);
+                        const userData = (bootstrap.users || []).find(u => u.id === session.userId);
+
+                        if (userData && userData.status === 'active' && companyData && companyData.status === 'active') {
+                            setUser(userData);
+                            setCompany(companyData);
+                        } else {
+                            DataService.clearSession();
+                        }
+                    } catch (error) {
+                        console.error('Error cargando sesión:', error);
                         DataService.clearSession();
+                    } finally {
+                        setLoading(false);
                     }
-                }
-                setLoading(false);
+                };
+
+                init();
             }, []);
 
-            const login = useCallback((companyCode, email, password) => {
-                // Buscar empresa por código
-                const companyData = DataService.getCompanyByCode(companyCode);
-                if (!companyData) {
-                    return { success: false, error: 'Código de empresa no válido' };
+            const login = useCallback(async (companyCode, email, password) => {
+                try {
+                    const result = await ApiService.login(companyCode, email, password);
+
+                    if (!result.success) {
+                        return { success: false, error: result.error || 'Error de login' };
+                    }
+
+                    const userData = result.data.user;
+                    const companyData = result.data.company;
+
+                    DataService.setSession(userData, companyData);
+                    await DataService.syncCache(companyData.id, userData.id);
+
+                    setUser(userData);
+                    setCompany(companyData);
+
+                    return { success: true };
+                } catch (error) {
+                    console.error('Error login:', error);
+                    return { success: false, error: 'No se pudo conectar con el servidor' };
                 }
-                
-                // Buscar usuario en esa empresa
-                const userData = DataService.getUserByEmailAndCompany(email, companyData.id);
-                if (!userData) {
-                    return { success: false, error: 'Usuario no encontrado en esta empresa' };
-                }
-                if (userData.status !== 'active') {
-                    return { success: false, error: 'Usuario desactivado. Contacte con el administrador.' };
-                }
-                if (userData.password !== password) {
-                    return { success: false, error: 'Contraseña incorrecta' };
-                }
-                
-                DataService.setSession(userData, companyData);
-                DataService.addLog('LOGIN', userData.id, `Inicio de sesión: ${userData.email}`, userData.id, companyData.id);
-                setUser(userData);
-                setCompany(companyData);
-                return { success: true };
             }, []);
 
             const logout = useCallback(() => {
-                if (user && company) {
-                    DataService.addLog('LOGOUT', user.id, `Cierre de sesión: ${user.email}`, user.id, company.id);
-                }
                 DataService.clearSession();
                 setUser(null);
                 setCompany(null);
-            }, [user, company]);
+            }, []);
 
-            const refreshUser = useCallback(() => {
-                if (user) {
-                    const updated = DataService.getUserById(user.id);
-                    setUser(updated);
+            const refreshUser = useCallback(async () => {
+                if (!user || !company) return;
+
+                try {
+                    const sync = await DataService.syncCache(company.id, user.id);
+                    const updated = (sync.bootstrap.users || []).find(u => u.id === user.id);
+                    if (updated) setUser(updated);
+                } catch (error) {
+                    console.error('Error refrescando usuario:', error);
                 }
-            }, [user]);
+            }, [user, company]);
 
             return (
                 <AuthContext.Provider value={{ user, company, loading, login, logout, refreshUser }}>
@@ -701,6 +741,7 @@
                 </AuthContext.Provider>
             );
         };
+
 
         const useAuth = () => useContext(AuthContext);
 
@@ -1315,7 +1356,7 @@
                 setLoading(true);
                 await new Promise(resolve => setTimeout(resolve, 800));
                 
-                const result = login(companyCode, email, password);
+                const result = await login(companyCode, email, password);
                 
                 if (!result.success) {
                     addToast(result.error, 'error');
@@ -1460,8 +1501,9 @@
         // VISTA DE EMPLEADO
         // ============================================
         
+
         const EmployeeView = () => {
-            const { user, company, logout } = useAuth();
+            const { user, company, logout, refreshUser } = useAuth();
             const { addToast } = useToast();
             const [currentTime, setCurrentTime] = useState(new Date());
             const [todayRecord, setTodayRecord] = useState(null);
@@ -1481,19 +1523,29 @@
             }, []);
 
             useEffect(() => {
-                loadData();
+                if (user && company) {
+                    loadData();
+                }
             }, [user, company]);
 
-            const loadData = () => {
-                const today = DataService.getTodayRecordForUser(user.id, company.id);
-                setTodayRecord(today);
-                const allRecords = DataService.getRecordsByUser(user.id, company.id);
-                setRecords(allRecords.sort((a, b) => new Date(b.date) - new Date(a.date)));
-                const freshUser = DataService.getUserById(user.id);
-                setProfileForm({
-                    password: '',
-                    hoursContracted: freshUser?.hoursContracted || 0
-                });
+            const loadData = async () => {
+                try {
+                    const sync = await DataService.syncCache(company.id, user.id);
+                    const users = sync.bootstrap.users || [];
+                    const recordsData = sync.bootstrap.records || [];
+                    const today = sync.bootstrap.todayRecord || recordsData.find(r => r.userId === user.id && r.companyId === company.id && r.date === Utils.getTodayString()) || null;
+                    const freshUser = users.find(u => u.id === user.id) || user;
+
+                    setTodayRecord(today);
+                    setRecords(recordsData.filter(r => r.userId === user.id).sort((a, b) => new Date(b.date) - new Date(a.date)));
+                    setProfileForm({
+                        password: '',
+                        hoursContracted: freshUser?.hoursContracted || user.hoursContracted || 0
+                    });
+                } catch (error) {
+                    console.error('Error cargando datos del empleado:', error);
+                    addToast('Error cargando datos', 'error');
+                }
             };
 
             const totalWorked = useMemo(() => records.reduce((acc, r) => acc + (r.hoursWorked || 0), 0), [records]);
@@ -1501,18 +1553,30 @@
 
             const handleProfileSave = async () => {
                 setSavingProfile(true);
-                await new Promise(resolve => setTimeout(resolve, 500));
-                const updates = {
-                    hoursContracted: Number(profileForm.hoursContracted || 0)
-                };
-                if (profileForm.password) {
-                    updates.password = profileForm.password;
+                try {
+                    const updates = {
+                        hoursContracted: Number(profileForm.hoursContracted || 0)
+                    };
+                    if (profileForm.password) {
+                        updates.password = profileForm.password;
+                    }
+
+                    const result = await ApiService.updateUser(user.id, company.id, updates, user.id);
+
+                    if (!result.success) {
+                        addToast(result.error || 'No se pudo actualizar el perfil', 'error');
+                    } else {
+                        addToast('Perfil actualizado correctamente', 'success');
+                        setProfileForm(prev => ({ ...prev, password: '' }));
+                        await refreshUser();
+                        await loadData();
+                    }
+                } catch (error) {
+                    console.error('Error actualizando perfil:', error);
+                    addToast('Error conectando con el servidor', 'error');
+                } finally {
+                    setSavingProfile(false);
                 }
-                DataService.updateUser(user.id, updates, company.id);
-                addToast('Perfil actualizado correctamente', 'success');
-                setProfileForm(prev => ({ ...prev, password: '' }));
-                setSavingProfile(false);
-                loadData();
             };
 
             const getStatus = () => {
@@ -1550,46 +1614,48 @@
 
             const confirmAction = async () => {
                 setLoading(true);
-                await new Promise(resolve => setTimeout(resolve, 500));
 
-                const now = new Date().toISOString();
-                
-                if (pendingAction === 'checkIn') {
-                    const newRecord = DataService.createRecord({
-                        userId: user.id,
-                        userName: `${user.name} ${user.lastName}`,
-                        userEmail: user.email,
-                        date: Utils.getTodayString(),
-                        checkIn: now,
-                        checkOut: null,
-                        checkType,
-                        observations: observation || null,
-                        status: 'incomplete',
-                        hoursWorked: null
-                    }, company.id);
-                    DataService.addLog('CHECK_IN', newRecord.id, `Fichaje entrada: ${user.email}`, user.id, company.id);
-                    addToast('Entrada registrada correctamente', 'success');
-                } else if (pendingAction === 'checkOut') {
-                    const hoursWorked = Utils.calculateHours(todayRecord.checkIn, now);
-                    DataService.updateRecord(todayRecord.id, {
-                        checkOut: now,
-                        hoursWorked,
-                        status: 'complete',
-                        observationsOut: observation || null
-                    }, company.id);
-                    DataService.addLog('CHECK_OUT', todayRecord.id, `Fichaje salida: ${user.email}`, user.id, company.id);
-                    addToast(`Salida registrada. Horas trabajadas: ${Utils.formatHours(hoursWorked)}`, 'success');
+                try {
+                    if (pendingAction === 'checkIn') {
+                        const result = await ApiService.checkIn({
+                            userId: user.id,
+                            companyId: company.id,
+                            userName: `${user.name} ${user.lastName}`,
+                            userEmail: user.email,
+                            checkType,
+                            observations: observation || ''
+                        });
+
+                        if (!result.success) {
+                            addToast(result.error || 'No se pudo registrar la entrada', 'error');
+                        } else {
+                            addToast('Entrada registrada correctamente', 'success');
+                        }
+                    } else if (pendingAction === 'checkOut') {
+                        const result = await ApiService.checkOut(user.id, company.id, observation || '');
+
+                        if (!result.success) {
+                            addToast(result.error || 'No se pudo registrar la salida', 'error');
+                        } else {
+                            addToast(`Salida registrada. Horas trabajadas: ${Utils.formatHours(result.data.hoursWorked)}`, 'success');
+                        }
+                    }
+
+                    setShowObservationModal(false);
+                    setPendingAction(null);
+                    setObservation('');
+                    setCheckType('presencial');
+                    await loadData();
+                } catch (error) {
+                    console.error('Error registrando fichaje:', error);
+                    addToast('Error conectando con el servidor', 'error');
+                } finally {
+                    setLoading(false);
                 }
-
-                setShowObservationModal(false);
-                setPendingAction(null);
-                setObservation('');
-                setCheckType('presencial');
-                setLoading(false);
-                loadData();
             };
 
             const status = getStatus();
+
 
             return (
                 <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
@@ -1948,14 +2014,25 @@
             const [filterDateTo, setFilterDateTo] = useState('');
 
             useEffect(() => {
-                loadData();
+                if (company && user) {
+                    loadData();
+                }
             }, [company, user]);
 
-            const loadData = () => {
-                // Solo cargar datos de la empresa actual
-                setUsers(DataService.getManageableUsers(user.role, company.id));
-                setRecords(DataService.getRecordsByCompany(company.id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-                setLogs(DataService.getLogsByCompany(company.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+            const loadData = async () => {
+                try {
+                    const sync = await DataService.syncCache(company.id, user.id);
+                    const manageableUsers = user.role === 'superadmin'
+                        ? (sync.bootstrap.users || []).filter(u => u.role !== 'superadmin')
+                        : (sync.bootstrap.users || []).filter(u => u.companyId === company.id);
+
+                    setUsers(manageableUsers);
+                    setRecords((sync.bootstrap.records || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+                    setLogs((sync.bootstrap.logs || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+                } catch (error) {
+                    console.error('Error cargando admin:', error);
+                    addToast('Error cargando datos del panel', 'error');
+                }
             };
 
             // Estadísticas
@@ -2039,12 +2116,17 @@
                     if (editUser) {
                         const updates = { ...formData };
                         if (!updates.password) delete updates.password;
-                        DataService.updateUser(editUser.id, updates, user.role === 'superadmin' ? null : company.id);
+                        const result = await ApiService.updateUser(editUser.id, user.role === 'superadmin' ? formData.companyId : company.id, updates, user.id);
+                        if (!result.success) {
+                            addToast(result.error || 'No se pudo actualizar el usuario', 'error');
+                            setSaving(false);
+                            return;
+                        }
                         addToast('Usuario actualizado', 'success');
                     } else {
-                        const result = DataService.createUser(formData, user.role === 'superadmin' ? formData.companyId : company.id);
-                        if (result.error) {
-                            addToast(result.error, 'error');
+                        const result = await ApiService.createUser(formData, user.role === 'superadmin' ? formData.companyId : company.id, user.id);
+                        if (!result.success) {
+                            addToast(result.error || 'No se pudo crear el usuario', 'error');
                             setSaving(false);
                             return;
                         }
@@ -2052,7 +2134,7 @@
                     }
 
                     setSaving(false);
-                    loadData();
+                    await loadData();
                     onClose();
                 };
 
@@ -2150,18 +2232,24 @@
                     const checkOutDate = formData.checkOut ? new Date(formData.checkOut).toISOString() : null;
                     const hoursWorked = checkInDate && checkOutDate ? Utils.calculateHours(checkInDate, checkOutDate) : null;
 
-                    DataService.updateRecord(record.id, {
+                    const result = await ApiService.updateRecord(record.id, company.id, {
                         checkIn: checkInDate,
                         checkOut: checkOutDate,
                         hoursWorked,
                         checkType: formData.checkType,
                         observations: formData.observations,
                         status: checkOutDate ? 'complete' : 'incomplete'
-                    }, company.id, user.id);
+                    }, user.id);
+
+                    if (!result.success) {
+                        addToast(result.error || 'No se pudo actualizar el registro', 'error');
+                        setSaving(false);
+                        return;
+                    }
 
                     addToast('Registro actualizado', 'success');
                     setSaving(false);
-                    loadData();
+                    await loadData();
                     onClose();
                 };
 
@@ -2219,13 +2307,26 @@
                     }
                     setSaving(true);
                     await new Promise(r => setTimeout(r, 400));
-                    DataService.createCompany({
+                    const result = await ApiService.createCompany({
                         name: formData.name,
                         code: formData.code.toUpperCase()
-                    });
+                    }, user.id);
+
+                    if (!result.success) {
+                        addToast(result.error || 'No se pudo crear la empresa', 'error');
+                        setSaving(false);
+                        return;
+                    }
+
+                    const companiesRes = await ApiService.getCompanies();
+                    if (companiesRes.success) {
+                        DataService.saveCompanies(companiesRes.data);
+                    }
+
                     addToast('Empresa creada', 'success');
                     setFormData({ name: '', code: '' });
                     setSaving(false);
+                    await loadData();
                     onCreated?.();
                 };
 
@@ -2357,9 +2458,7 @@
                                                                 size="sm"
                                                                 onClick={() => {
                                                                     if (confirm(`¿Eliminar la empresa ${comp.name}? También se eliminarán sus usuarios y fichajes.`)) {
-                                                                        DataService.deleteCompany(comp.id);
-                                                                        addToast('Empresa eliminada', 'success');
-                                                                        loadData();
+                                                                        addToast('Eliminar empresas aún no está conectado al backend', 'warning');
                                                                     }
                                                                 }}
                                                                 icon={<Icons.Trash />}
@@ -2608,9 +2707,16 @@
                                                                         size="sm"
                                                                         onClick={() => {
                                                                             if (confirm('¿Eliminar este usuario?')) {
-                                                                                DataService.deleteUser(u.id, company.id);
-                                                                                addToast('Usuario eliminado', 'success');
-                                                                                loadData();
+                                                                                ApiService.deleteUser(u.id, company.id, user.id)
+                                                                                    .then(async (result) => {
+                                                                                        if (!result.success) {
+                                                                                            addToast(result.error || 'No se pudo eliminar el usuario', 'error');
+                                                                                            return;
+                                                                                        }
+                                                                                        addToast('Usuario eliminado', 'success');
+                                                                                        await loadData();
+                                                                                    })
+                                                                                    .catch(() => addToast('Error conectando con el servidor', 'error'));
                                                                             }
                                                                         }}
                                                                         icon={<Icons.Trash />}
